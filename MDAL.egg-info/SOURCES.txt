@@ -1,0 +1,12 @@
+README.rst
+pyproject.toml
+setup.py
+MDAL.egg-info/PKG-INFO
+MDAL.egg-info/SOURCES.txt
+MDAL.egg-info/dependency_links.txt
+MDAL.egg-info/not-zip-safe
+MDAL.egg-info/top_level.txt
+_skbuild/macosx-10.15-x86_64-3.9/cmake-install/mdal/__init__.py
+_skbuild/macosx-10.15-x86_64-3.9/cmake-install/mdal/array.py
+_skbuild/macosx-10.15-x86_64-3.9/cmake-install/mdal/libmdalpython.cpython-39-darwin.so
+test/test.py
