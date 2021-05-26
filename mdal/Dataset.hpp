@@ -46,75 +46,23 @@ namespace mdal
 {
 namespace python
 {
-class MeshIter;
-
-class Mesh
+class Data
 {
 public:
-    using Shape = std::array<size_t, 3>;
+    Data(MDAL_DatasetH data);
+    Data();
 
-    bool hasMesh;
+    ~Data();
 
-    Mesh(const char* uri);
-    Mesh();
-
-    ~Mesh();
-
-    PyArrayObject *getVerteces();
-    PyArrayObject *getFaces();
-    PyArrayObject *getEdges();
-
-    int vertexCount();
-    int edgeCount();
-    int faceCount();
-    int groupCount();
-    int maxFaceVertex();
-    const char* getProjection();
-    void getExtent(double* minX, double* maxX, double* minY, double* maxY);
-    const char* getDriverName();
-    MDAL_DatasetGroupH getGroup(int index);
-
-
-    bool rowMajor() const;
-    Shape shape() const;
-    MeshIter& iterator();
-
+    bool isValid();
+    int valueCount();
 
 private:
 
-    PyArrayObject *m_verteces;
-    PyArrayObject *m_faces;
-    PyArrayObject *m_edges;
-    MDAL_MeshH m_mdalMesh;
+    MDAL_DatasetH m_data;
+    PyArrayObject* m_dataset;
 
-    Mesh& operator=(Mesh const& rhs);
-    bool m_rowMajor;
-    Shape m_shape {};
-    std::vector<std::unique_ptr<MeshIter>> m_iterators;
-};
 
-class MeshIter
-{
-public:
-    MeshIter(const MeshIter&) = delete;
-    MeshIter() = delete;
-
-    MeshIter(Mesh& mesh);
-    ~MeshIter();
-
-    MeshIter& operator++();
-    operator bool () const;
-    char *operator * () const;
-
-private:
-    NpyIter *m_iter;
-    NpyIter_IterNextFunc *m_iterNext;
-    char **m_data;
-    npy_intp *m_size;
-    npy_intp *m_stride;
-    bool m_done;
-};    
-
+}; // class Data
 } // namespace python
 } // namespace mdal
-

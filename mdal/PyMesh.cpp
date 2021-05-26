@@ -13,7 +13,7 @@
 *       notice, this list of conditions and the following disclaimer in
 *       the documentation and/or other materials provided
 *       with the distribution.
-*     * Neither the name of Hobu, Inc. or Flaxen Geo Consulting nor the
+*     * Neither the name of Runette Software nor the
 *       names of its contributors may be used to endorse or promote
 *       products derived from this software without specific prior
 *       written permission.
@@ -36,7 +36,7 @@
 
 #include <numpy/arrayobject.h>
 #include <string>
-#include <iostream>
+#include <cmath>
 
 
 namespace mdal
@@ -46,17 +46,18 @@ namespace python
 
 // Create new empty mesh
 //
-Mesh::Mesh() : m_mesh(nullptr)
+Mesh::Mesh() : m_verteces(nullptr), m_faces(nullptr), m_edges(nullptr), m_mdalMesh(nullptr)
 {
     hasMesh = false;
-    //if (_import_array() < 0)
+    if (_import_array() < 0)
+        {}
         //throw pdal_error("Could not import numpy.core.multiarray.");
 }
 
 Mesh::~Mesh()
 {
-    if (m_mesh)
-        Py_XDECREF((PyObject *)m_mesh);
+    if (m_verteces)
+        Py_XDECREF((PyObject *)m_verteces);
     if (m_mdalMesh)
         MDAL_CloseMesh(m_mdalMesh);
 }
@@ -64,113 +65,202 @@ Mesh::~Mesh()
 //
 // Load from uri
 //
-Mesh::Mesh(const char* uri) 
+Mesh::Mesh(const char* uri) : m_verteces(nullptr), m_faces(nullptr), m_edges(nullptr), m_mdalMesh(nullptr)
 {
+    if (_import_array() < 0)
+        return;
     m_mdalMesh = MDAL_LoadMesh(uri);
     if (MDAL_LastStatus() == MDAL_Status::None){
         hasMesh=true;
     }
 }
 
-// Update from a PointView
-//
-// void Mesh::update(PointViewPtr view)
-// {
-//     npy_intp size;
-
-//     if (m_mesh)
-//         Py_XDECREF((PyObject *)m_mesh);
-//     m_mesh = nullptr;  // Just in case of an exception.
-
-//     TriangularMesh* mesh = view->mesh();
-//     if (mesh)
-//     {
-//         hasMesh = true;
-//         size = mesh->size();
-//     } else {
-//         hasMesh = false;
-//         size = 0;
-//     }
-
-//     PyObject *dtype_dict = (PyObject*)buildNumpyDescription(view);
-//     if (!dtype_dict)
-//         throw pdal_error("Unable to build numpy dtype "
-//                 "description dictionary");
-
-//     PyArray_Descr *dtype = nullptr;
-//     if (PyArray_DescrConverter(dtype_dict, &dtype) == NPY_FAIL)
-//         throw pdal_error("Unable to build numpy dtype");
-//     Py_XDECREF(dtype_dict);
-
-//     // This is a 1 x size array.
-//     m_mesh = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
-//             1, &size, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
-
-//     for (PointId idx = 0; idx < size; idx++)
-//     {
-//         char* p = (char *)PyArray_GETPTR1(m_mesh, idx);
-//         const Triangle& t = (*mesh)[idx];
-//         uint32_t a = (uint32_t)t.m_a;
-//         std::memcpy(p, &a, 4);
-//         uint32_t b = (uint32_t)t.m_b;
-//         std::memcpy(p + 4, &b, 4);
-//         uint32_t c = (uint32_t)t.m_c;
-//         std::memcpy(p + 8, &c,  4);
-//     }
-// }
-
-
-
-PyArrayObject* Mesh::getVerteces() 
+PyArrayObject *Mesh::getVerteces() 
 {
-    std::vector<const char*> def = {"X","Y","Z"};
+    if (! m_verteces) {
+        PyObject* dict = PyDict_New();
+        PyObject* formats = PyList_New(3);
+        PyObject* titles = PyList_New(3);
 
-    PyObject* dtype_dict = (PyObject*)buildNumpyDescription( def ,"f8" );
+        PyList_SetItem(titles, 0, PyUnicode_FromString("X"));
+        PyList_SetItem(formats, 0, PyUnicode_FromString("f8"));
+        PyList_SetItem(titles, 1, PyUnicode_FromString("Y"));
+        PyList_SetItem(formats, 1, PyUnicode_FromString("f8"));
+        PyList_SetItem(titles, 2, PyUnicode_FromString("Z"));
+        PyList_SetItem(formats, 2, PyUnicode_FromString("f8"));
 
-//     if (!dtype_dict)
-//         throw pdal_error("Unable to build numpy dtype "
-//                 "description dictionary");
+        PyDict_SetItemString(dict, "names", titles);
+        PyDict_SetItemString(dict, "formats", formats);
 
-     PyArray_Descr *dtype = nullptr;
-//     if (PyArray_DescrConverter(dtype_dict, &dtype) == NPY_FAIL)
-//         throw pdal_error("Unable to build numpy dtype");
-     Py_XDECREF(dtype_dict);
+        PyArray_Descr *dtype = nullptr;
+        if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
+            {}
+    //         throw pdal_error("Unable to build numpy dtype");
+        Py_XDECREF(dict);
 
-     npy_intp* size = (npy_intp*)vertexCount();
+        npy_intp size = (npy_intp)vertexCount();
 
-     // This is a 1 x size array.
-    m_mesh = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
-             1, size, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
-    return NULL;
-    return m_mesh;
+        // This is a 1 x size array.
+        m_verteces = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+                1, &size, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
 
-    MDAL_MeshVertexIteratorH vi = MDAL_M_vertexIterator(m_mdalMesh);
+        MDAL_MeshVertexIteratorH vi = MDAL_M_vertexIterator(m_mdalMesh);
 
-    double* buffer = new double[3072];
-    size_t count = 0;
+        double* buffer = new double[3072];
+        size_t count = 0;
+        int bufs = std::ceil(size/1024);
+        if (bufs == 0) bufs = 1;
 
-    for (int j = 0; j < *size / 1024; j++)
-    {
-        count = MDAL_VI_next(vi, 1024, buffer);
-        int idx = 0;
-        for (int i = 0; i < count; i++) 
+        for (int j = 0; j < bufs; j++)
         {
-            char* p = (char *)PyArray_GETPTR1(m_mesh, (1024 * j) + i);
-            
-            double x = buffer[idx];
-            idx++;
-            double y = buffer[idx];
-            idx++;
-            double z = buffer[idx];
-            idx++;
-            std::memcpy(p, &x, 8);
-            std::memcpy(p + 8, &y, 8);
-            std::memcpy(p + 16, &z,  8);
+            count = MDAL_VI_next(vi, 1024, buffer);
+            int idx = 0;
+            for (int i = 0; i < count; i++) 
+            {
+                char* p = (char *)PyArray_GETPTR1(m_verteces, (1024 * j) + i);
+                
+                double x = buffer[idx];
+                idx++;
+                double y = buffer[idx];
+                idx++;
+                double z = buffer[idx];
+                idx++;
+                std::memcpy(p, &x, 8);
+                std::memcpy(p + 8, &y, 8);
+                std::memcpy(p + 16, &z,  8);
+            }
         }
+        delete [] buffer;
+        MDAL_VI_close(vi);
     }
-    delete [] buffer;
-    MDAL_VI_close(vi);
-    return m_mesh;
+    return m_verteces;
+}
+
+PyArrayObject *Mesh::getFaces() 
+{
+    if (! m_faces) {
+        PyObject* dict = PyDict_New();
+        PyObject* formats = PyList_New(maxFaceVertex() + 1);
+        PyObject* titles = PyList_New(maxFaceVertex() + 1);
+
+        PyList_SetItem(titles, 0, PyUnicode_FromString("Verteces"));
+        PyList_SetItem(formats, 0, PyUnicode_FromString("u4"));
+
+        for (int i = 0; i < maxFaceVertex();i++)
+        {
+            std::string name = "V" + std::to_string(i);
+            PyList_SetItem(titles, i + 1, PyUnicode_FromString(name.c_str()));
+            PyList_SetItem(formats, i + 1, PyUnicode_FromString("u4"));
+        }
+
+        PyDict_SetItemString(dict, "names", titles);
+        PyDict_SetItemString(dict, "formats", formats);
+
+        PyArray_Descr *dtype = nullptr;
+        if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
+            {}
+    //         throw pdal_error("Unable to build numpy dtype");
+        Py_XDECREF(dict);
+
+        npy_intp size = (npy_intp)faceCount();
+
+        // This is a 1 x size array.
+        m_faces = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+                1, &size, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
+
+        MDAL_MeshEdgeIteratorH fi = MDAL_M_faceIterator(m_mdalMesh);
+
+        int* vbuffer = new int[1024];
+        int* obuffer = new int[1024];
+        size_t count = 0;
+        size_t tcount = 0;
+
+        while (tcount < faceCount())
+        {
+            count = MDAL_FI_next(fi, 1024, obuffer, 1024, vbuffer);
+            for (int i = 0; i < count; i++) 
+            {
+                char* p = (char *)PyArray_GETPTR1(m_faces, tcount + i);
+                size_t offset;
+                if (i==0)
+                {
+                    offset = 0;
+                } else 
+                {
+                    offset = (size_t)obuffer[i-1];
+                }
+                uint32_t vert = (uint32_t)obuffer[i] - offset;
+
+                std::memcpy(p, &vert, 4);
+
+                for (int k=0; k<vert; k++)
+                {
+                    uint32_t v = (uint32_t)vbuffer[offset + k];
+                    std::memcpy(p + ((k + 1) * 4), &v, 4);
+                }
+            }
+            tcount += count;
+        }
+        delete [] vbuffer;
+        delete [] obuffer;
+        MDAL_FI_close(fi);
+    }
+    return m_faces;
+}
+
+PyArrayObject *Mesh::getEdges() 
+{
+    if (! m_edges) {
+        PyObject* dict = PyDict_New();
+        PyObject* formats = PyList_New(2);
+        PyObject* titles = PyList_New(2);
+
+        PyList_SetItem(titles, 0, PyUnicode_FromString("START"));
+        PyList_SetItem(formats, 0, PyUnicode_FromString("u4"));
+        PyList_SetItem(titles, 1, PyUnicode_FromString("END"));
+        PyList_SetItem(formats, 1, PyUnicode_FromString("u4"));
+
+        PyDict_SetItemString(dict, "names", titles);
+        PyDict_SetItemString(dict, "formats", formats);
+
+        PyArray_Descr *dtype = nullptr;
+        if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
+            {}
+    //         throw pdal_error("Unable to build numpy dtype");
+        Py_XDECREF(dict);
+
+        npy_intp size = (npy_intp)edgeCount();
+
+        // This is a 1 x size array.
+        m_edges = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+                1, &size, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
+
+        MDAL_MeshEdgeIteratorH ei = MDAL_M_edgeIterator(m_mdalMesh);
+
+        int* sbuffer = new int[1024];
+        int* ebuffer = new int[1024];
+        size_t count = 0;
+        int bufs = std::ceil(size/1024);
+        if (bufs == 0) bufs = 1;
+
+        for (int j = 0; j < bufs; j++)
+        {
+            count = MDAL_EI_next(ei, 1024, sbuffer, ebuffer);
+            for (int i = 0; i < count; i++) 
+            {
+                char* p = (char *)PyArray_GETPTR1(m_edges, (1024 * j) + i);
+                
+                uint32_t s = (uint32_t)sbuffer[i];
+                uint32_t e = (uint32_t)ebuffer[i];
+                std::memcpy(p, &s, 4);
+                std::memcpy(p + 4, &e, 4);
+            }
+        }
+        delete [] sbuffer;
+        delete [] ebuffer;
+        MDAL_EI_close(ei);
+    }
+    return m_edges;
 }
 
 int Mesh::edgeCount() 
@@ -191,6 +281,19 @@ int Mesh::faceCount()
 {
     if (m_mdalMesh)
         return MDAL_M_faceCount(m_mdalMesh);
+    return 0;
+}
+
+int Mesh::groupCount()
+{
+    if (m_mdalMesh)
+        return MDAL_M_datasetGroupCount(m_mdalMesh);
+    return 0;
+}
+
+int Mesh::maxFaceVertex(){
+    if (m_mdalMesh)
+        return MDAL_M_faceVerticesMaximumCount(m_mdalMesh);
     return 0;
 }
 
@@ -215,39 +318,13 @@ const char* Mesh::getDriverName()
     return NULL;
 }
 
-
-
-PyObject* Mesh::buildNumpyDescription(std::vector<const char*> def, const char* type ) const
+MDAL_DatasetGroupH Mesh::getGroup(int index) 
 {
-    // Build up a numpy dtype dictionary
-    //
-    // {'formats': ['f8', 'f8', 'f8', 'u2', 'u1', 'u1', 'u1', 'u1', 'u1',
-    //              'f4', 'u1', 'u2', 'f8', 'u2', 'u2', 'u2'],
-    // 'names': ['X', 'Y', 'Z', 'Intensity', 'ReturnNumber',
-    //           'NumberOfReturns', 'ScanDirectionFlag', 'EdgeOfFlightLine',
-    //           'Classification', 'ScanAngleRank', 'UserData',
-    //           'PointSourceId', 'GpsTime', 'Red', 'Green', 'Blue']}
-    //
-
-    size_t size = def.size() ;
-
-    PyObject* dict = PyDict_New();
-    PyObject* formats = PyList_New(size);
-    PyObject* titles = PyList_New(size);
-
-
-    for (int i = 0; i< size; i++) 
-    {
-        PyList_SetItem(titles, 0, PyUnicode_FromString(def[i]));
-        PyList_SetItem(formats, 0, PyUnicode_FromString(type));
-    }
-   
-
-    PyDict_SetItemString(dict, "names", titles);
-    PyDict_SetItemString(dict, "formats", formats);
-
-    return dict;
+    if (m_mdalMesh)
+        return MDAL_M_datasetGroup(m_mdalMesh, index);
+    return nullptr;
 }
+
 
 bool Mesh::rowMajor() const
 {

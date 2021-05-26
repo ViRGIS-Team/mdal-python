@@ -14,6 +14,8 @@ from cython.operator cimport dereference as deref, preincrement as inc
 
 cdef extern from "mdal.h":
     ctypedef void* MDAL_DriverH;
+    ctypedef void* MDAL_DatasetGroupH;
+    ctypedef void* MDAL_DatasetH;
 
     cpdef enum MDAL_Status:
         Err_NotEnoughMemory = 1,
@@ -53,6 +55,10 @@ cdef extern from "mdal.h":
     cdef string MDAL_DR_longName( MDAL_DriverH driver )
     cdef string MDAL_DR_filters( MDAL_DriverH driver )
     cdef string MDAL_MeshNames(  char* uri )
+    cdef MDAL_DataLocation MDAL_G_dataLocation(MDAL_DatasetGroupH group)
+    cdef string MDAL_G_name(MDAL_DatasetGroupH group)
+    cdef int MDAL_G_datasetCount(MDAL_DatasetGroupH group)
+    cdef MDAL_DatasetH MDAL_G_dataset(MDAL_DatasetGroupH group, int index)
 
 
 def getVersionString():
@@ -75,12 +81,17 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
         Mesh() except +
         Mesh(char* uri) except +
         void *getVerteces() except +
+        void *getFaces() except +
+        void *getEdges() except +
         int vertexCount() except +
         int edgeCount() except +
         int faceCount() except +
+        int maxFaceVertex() except +
         string getProjection() except +
         void getExtent(double* minX, double* maxX, double* minY, double* maxY) except +
         string getDriverName() except +
+        int groupCount() except +
+        MDAL_DatasetGroupH getGroup(int index) except +
 
 
 cdef class Driver:
@@ -171,6 +182,11 @@ cdef class PyMesh:
         def __get__(self):
             return self.thisptr.edgeCount()
 
+    property largestFace:
+
+        def __get__(self):
+            return self.thisptr.maxFaceVertex()
+
     property projection:
 
         def __get__(self):
@@ -191,6 +207,72 @@ cdef class PyMesh:
         def __get__(self):
             return self.thisptr.getDriverName()
 
+    property groupCount:
+
+        def __get__(self):
+            return self.thisptr.groupCount()
+
     def getVerteces(self):
-        print("got here")
-        self.thisptr.getVerteces()
+        return <object>self.thisptr.getVerteces()
+    
+    def getFaces(self):
+        return <object>self.thisptr.getFaces()
+
+    def getEdges(self):
+        return <object>self.thisptr.getEdges()
+    
+    def getGroup(self, index):
+        ret = DatasetGroup()
+        ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.getGroup(index)
+        return ret
+
+    def getGroups(self):
+        ret = []
+        for i in range(0,self.groupCount):
+            ret.append(self.getGroup(i))
+        return ret;
+
+
+cdef class DatasetGroup:
+    cdef MDAL_DatasetGroupH thisptr
+
+    property location:
+
+        def __get__(self):
+            return MDAL_G_dataLocation(self.thisptr)
+
+    property name:
+
+        def __get__(self):
+            return MDAL_G_name(self.thisptr)
+
+    property datasetCount:
+
+        def __get__(self):
+            return MDAL_G_datasetCount(self.thisptr)
+
+    def getDataset(self, index):
+        ret =  Dataset()
+        ret.thisptr = new Data(MDAL_G_dataset(self.thisptr, index))
+        return ret
+
+
+cdef extern from "Dataset.hpp" namespace "mdal::python":
+    cdef cppclass Data:
+        Data() except +
+        Data(MDAL_DatasetH data) except +
+        bool isValid() except +
+        int valueCount() except +
+
+cdef class Dataset:
+    cdef Data* thisptr
+
+    property isValid:
+
+        def __get__(self):
+            return self.thisptr.isValid()
+
+    property valueCount:
+
+        def __get__(self):
+            return self.thisptr.valueCount()

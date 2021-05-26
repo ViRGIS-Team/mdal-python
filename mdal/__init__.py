@@ -8,7 +8,8 @@ from mdal.libmdalpython import getVersionString, \
                                Driver, \
                                getDrivers, \
                                Datasource, \
-                               PyMesh \
+                               PyMesh, \
+                               DatasetGroup
 
 
 class Info(object):

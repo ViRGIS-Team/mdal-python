@@ -13,7 +13,7 @@
 *       notice, this list of conditions and the following disclaimer in
 *       the documentation and/or other materials provided
 *       with the distribution.
-*     * Neither the name of Runette SOftware. nor the
+*     * Neither the name of Runette Software nor the
 *       names of its contributors may be used to endorse or promote
 *       products derived from this software without specific prior
 *       written permission.
@@ -32,89 +32,54 @@
 * OF SUCH DAMAGE.
 ****************************************************************************/
 
-#pragma once
+#include "Dataset.hpp"
 
-#include <numpy/ndarraytypes.h>
-#include "mdal.h"
+#include <numpy/arrayobject.h>
+#include <string>
+#include <cmath>
 
-#include <utility>
-#include <memory>
-#include <array>
-#include <vector>
 
 namespace mdal
 {
 namespace python
 {
-class MeshIter;
 
-class Mesh
+// Create new empty dataset
+//
+Data::Data() : m_data(nullptr), m_dataset(nullptr)
 {
-public:
-    using Shape = std::array<size_t, 3>;
+        if (_import_array() < 0)
+        {}
+}
 
-    bool hasMesh;
-
-    Mesh(const char* uri);
-    Mesh();
-
-    ~Mesh();
-
-    PyArrayObject *getVerteces();
-    PyArrayObject *getFaces();
-    PyArrayObject *getEdges();
-
-    int vertexCount();
-    int edgeCount();
-    int faceCount();
-    int groupCount();
-    int maxFaceVertex();
-    const char* getProjection();
-    void getExtent(double* minX, double* maxX, double* minY, double* maxY);
-    const char* getDriverName();
-    MDAL_DatasetGroupH getGroup(int index);
-
-
-    bool rowMajor() const;
-    Shape shape() const;
-    MeshIter& iterator();
-
-
-private:
-
-    PyArrayObject *m_verteces;
-    PyArrayObject *m_faces;
-    PyArrayObject *m_edges;
-    MDAL_MeshH m_mdalMesh;
-
-    Mesh& operator=(Mesh const& rhs);
-    bool m_rowMajor;
-    Shape m_shape {};
-    std::vector<std::unique_ptr<MeshIter>> m_iterators;
-};
-
-class MeshIter
+Data::~Data()
 {
-public:
-    MeshIter(const MeshIter&) = delete;
-    MeshIter() = delete;
+    if (m_dataset)
+        Py_XDECREF((PyObject *)m_dataset);
+}
 
-    MeshIter(Mesh& mesh);
-    ~MeshIter();
+// Create dataset object
+//
+Data::Data(MDAL_DatasetH data) : m_data(nullptr), m_dataset(nullptr)
+{
+        if (_import_array() < 0)
+            return;
+        m_data = data;
+}
 
-    MeshIter& operator++();
-    operator bool () const;
-    char *operator * () const;
+bool Data::isValid() 
+{
+    if (m_data) 
+        return MDAL_D_isValid(m_data);
+    return false;
+}
 
-private:
-    NpyIter *m_iter;
-    NpyIter_IterNextFunc *m_iterNext;
-    char **m_data;
-    npy_intp *m_size;
-    npy_intp *m_stride;
-    bool m_done;
-};    
+int Data::valueCount() 
+{
+    if (m_data)
+        return MDAL_D_valueCount(m_data);
+    return 0;
+}
 
 } // namespace python
 } // namespace mdal
-
