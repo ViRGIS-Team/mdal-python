@@ -1,5 +1,5 @@
 # distutils: language = c++
-# cython: c_string_type=unicode, c_string_encoding=utf8
+# cython: c_string_type=unicode, c_string_encoding=utf8, embedsignature=True
 
 from libcpp.vector cimport vector
 from libcpp.string cimport string
@@ -68,12 +68,15 @@ cdef extern from "mdal.h":
 
 
 def getVersionString():
+    """Returns MDAL version"""
     return MDAL_Version()
 
 def getLastStatus():
+    """Returns last status message"""
     return MDAL_LastStatus()
 
 def getDriverCount():
+    """Returns count of registed MDAL drivers"""
     return MDAL_driverCount()
 
 def getDrivers():
@@ -101,12 +104,16 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
 
 
 cdef class Driver:
+    """
+    Wrapper for the MDAL Driver. 
+    """
     cdef MDAL_DriverH thisptr # hold the pointer to the driver instance we are wrapping
 
     def __cinit__(self, int index):
         self.thisptr = MDAL_driverFromIndex(index);
 
     property name:
+        """Driver Short Name"""
 
         def __get__(self):
             return MDAL_DR_name(self.thisptr)

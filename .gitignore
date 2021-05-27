@@ -33,3 +33,4 @@
 
 #build files
 _skbuild/
+.DS_Store

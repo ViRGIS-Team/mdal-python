@@ -1,7 +1,5 @@
 __version__='0.9.0'
 
-#from .array import Array
-
 from mdal.libmdalpython import getVersionString, \
                                getDriverCount, \
                                getLastStatus, \
@@ -13,6 +11,9 @@ from mdal.libmdalpython import getVersionString, \
 
 
 class Info(object):
+    """Information on MDAL"""
     version = getVersionString()
+    driverCount = getDriverCount()
+    drivers = [driver.long_name for driver in getDrivers()]
 
 info = Info()
