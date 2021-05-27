@@ -49,17 +49,17 @@ namespace python
 class Data
 {
 public:
-    Data(MDAL_DatasetH data);
+    Data(MDAL_DatasetGroupH data);
     Data();
 
     ~Data();
 
-    bool isValid();
-    int valueCount();
+    PyObject* getMetadata();
+    PyArrayObject* getDataAsDouble(int index);
 
 private:
 
-    MDAL_DatasetH m_data;
+    MDAL_DatasetGroupH m_data;
     PyArrayObject* m_dataset;
 
 

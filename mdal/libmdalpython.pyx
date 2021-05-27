@@ -59,6 +59,12 @@ cdef extern from "mdal.h":
     cdef string MDAL_G_name(MDAL_DatasetGroupH group)
     cdef int MDAL_G_datasetCount(MDAL_DatasetGroupH group)
     cdef MDAL_DatasetH MDAL_G_dataset(MDAL_DatasetGroupH group, int index)
+    cdef bool MDAL_G_hasScalarData(MDAL_DatasetGroupH group)
+    cdef int MDAL_G_maximumVerticalLevelCount(MDAL_DatasetGroupH group)
+    cdef bool MDAL_G_isTemporal(MDAL_DatasetGroupH group)
+    cdef const char *MDAL_G_referenceTime(MDAL_DatasetGroupH group)
+    cdef void MDAL_G_minimumMaximum(MDAL_DatasetGroupH group, double* min, double* max)
+    cdef double MDAL_D_time(MDAL_DatasetH dataset)
 
 
 def getVersionString():
@@ -224,6 +230,7 @@ cdef class PyMesh:
     def getGroup(self, index):
         ret = DatasetGroup()
         ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.getGroup(index)
+        ret.thisdata = new Data(ret.thisptr)
         return ret
 
     def getGroups(self):
@@ -233,8 +240,16 @@ cdef class PyMesh:
         return ret;
 
 
+cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
+    cdef cppclass Data:
+        Data() except +
+        Data(MDAL_DatasetGroupH data) except +
+        dict getMetadata() except +
+        void* getDataAsDouble(int index) except +
+
 cdef class DatasetGroup:
     cdef MDAL_DatasetGroupH thisptr
+    cdef Data* thisdata # cpp class instance used to marshall the data values
 
     property location:
 
@@ -251,28 +266,41 @@ cdef class DatasetGroup:
         def __get__(self):
             return MDAL_G_datasetCount(self.thisptr)
 
-    def getDataset(self, index):
-        ret =  Dataset()
-        ret.thisptr = new Data(MDAL_G_dataset(self.thisptr, index))
-        return ret
-
-
-cdef extern from "Dataset.hpp" namespace "mdal::python":
-    cdef cppclass Data:
-        Data() except +
-        Data(MDAL_DatasetH data) except +
-        bool isValid() except +
-        int valueCount() except +
-
-cdef class Dataset:
-    cdef Data* thisptr
-
-    property isValid:
+    property hasScalar:
 
         def __get__(self):
-            return self.thisptr.isValid()
+            return MDAL_G_hasScalarData(self.thisptr)
 
-    property valueCount:
+    property isTemporal:
 
         def __get__(self):
-            return self.thisptr.valueCount()
+            return MDAL_G_isTemporal(self.thisptr)
+
+    property referenceTime:
+
+        def __get__(self):
+            return MDAL_G_referenceTime(self.thisptr)
+
+    property levelCount:
+
+        def __get__(self):
+            return MDAL_G_maximumVerticalLevelCount(self.thisptr)
+
+    property minmax:
+
+        def __get__(self):
+            min = <double>0
+            max = <double>0
+            MDAL_G_minimumMaximum(self.thisptr, &min, &max)
+            return (min, max)
+
+    def getMetadata(self):
+        return self.thisdata.getMetadata()
+
+    def getDataAsDouble(self, index=0):
+        return <object>self.thisdata.getDataAsDouble(index)
+
+    def getDatasetTime(self, index):
+        return MDAL_D_time(MDAL_G_dataset(self.thisptr, index))
+
+

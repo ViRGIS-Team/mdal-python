@@ -1,8 +1,8 @@
 set(EXTENSION_SRC
     PyMesh.cpp
     PyMesh.hpp
-    Dataset.cpp
-    Dataset.hpp
+    DatasetGroup.cpp
+    DatasetGroup.hpp
     )
 
 set(extension "libmdalpython")
