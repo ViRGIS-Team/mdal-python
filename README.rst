@@ -17,7 +17,7 @@ Currently, this integration can:
 
 This version does not currently allow the MDAL source mesh to be written or ammended.
 
-.. _MDAL: https://mdal.xyz
+.. _MDAL: https://www.mdal.xyz/
 .. _meshio: https://github.com/nschloe/meshio
 
 Drivers
