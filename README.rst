@@ -23,7 +23,7 @@ This version does not currently allow the MDAL source mesh to be written or amme
 Drivers
 .......
 
-
+['2DM Mesh File', 'XMS Tin Mesh File', 'Selafin File', 'Esri TIN', 'Stanford PLY Ascii Mesh File', 'Flo2D', 'HEC-RAS 2D', 'TUFLOW FV', 'AnuGA', 'UGRID Results', 'GDAL NetCDF', 'GDAL Grib', 'DAT', 'Binary DAT', 'TUFLOW XMDF', 'XDMF']
 
 Installation
 ------------
@@ -113,7 +113,7 @@ The basic usage can be seen in this code snippet:
 Documentation
 -------------
 
-The documentation is currently WIP and can be found at https://virgis-team.github.io/mdal-python/
+The documentation is currently WIP and can be found at https://virgis-team.github.io/mdal-python/html/index.html
 
 
 Requirements
