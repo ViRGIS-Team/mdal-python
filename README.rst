@@ -99,12 +99,12 @@ The basic usage can be seen in this code snippet:
 
     print("")
 
-    data = group.getDataAsDouble()
+    data = group.getDataAsDouble(0)
     print(f"Dataset Shape : {data.shape}")
 
 
 Requirements
-================================================================================
+------------
 
 * MDAL 0.8.0 +
 * Python >=3.6
@@ -112,4 +112,5 @@ Requirements
 * Numpy (eg :code:`pip install numpy`)
 * Packaging (eg :code:`pip install packaging`)
 * scikit-build (eg :code:`pip install scikit-build`)
+
 
