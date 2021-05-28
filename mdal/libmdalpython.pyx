@@ -7,7 +7,11 @@ from libc.stdint cimport uint32_t, int64_t
 from libcpp cimport bool
 from cpython.version cimport PY_MAJOR_VERSION
 cimport numpy as np
+import numpy as npy
 np.import_array()
+import meshio
+import typing
+from typing import Union
 
 from cpython cimport PyObject, Py_INCREF
 from cython.operator cimport dereference as deref, preincrement as inc
@@ -80,6 +84,7 @@ def getDriverCount():
     return MDAL_driverCount()
 
 def getDrivers():
+    """Returns the list of Drivers"""
     ret = []
     for i in range(0, getDriverCount()):
         ret.append(Driver(i))
@@ -89,7 +94,7 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
     cdef cppclass Mesh:
         Mesh() except +
         Mesh(char* uri) except +
-        void *getVerteces() except +
+        void *getVertices() except +
         void *getFaces() except +
         void *getEdges() except +
         int vertexCount() except +
@@ -104,8 +109,9 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
 
 
 cdef class Driver:
-    """
-    Wrapper for the MDAL Driver. 
+    """Wrapper for the MDAL Driver.
+
+    Init : Driver(index: int)
     """
     cdef MDAL_DriverH thisptr # hold the pointer to the driver instance we are wrapping
 
@@ -119,7 +125,7 @@ cdef class Driver:
             return MDAL_DR_name(self.thisptr)
 
     property long_name:
-
+        """Driver Long Name"""
         def __get__(self):
             return MDAL_DR_longName(self.thisptr)
 
@@ -147,14 +153,17 @@ cdef class Driver:
             return MDAL_DR_meshLoadCapability(self.thisptr)
 
 cdef class Datasource:
-
+    """Wrapper for a Source of MDAL data - e.g. a file.
+    
+    Init: Datasource(uri: str)
+    """
     cdef string uri  # hold the uri reference for the datasource
 
     def __cinit__(self, string uri):
         self.uri = uri
 
     property meshes:
-
+        """Returns a list of mesh uris"""
         def __get__(self):
          return self.getMeshNames().split(";;")
 
@@ -165,7 +174,14 @@ cdef class Datasource:
             raise IndexError("No Meshes Found" + str(status))
         return ret
 
-    def load(self, arg):
+    def load(self, arg: Union(int, str)) -> PyMesh:
+        """Returns an mdal.PyMesh object wrapping an instance of an MDAL mesh.
+
+        Usage: 
+        
+        ds.load(uri: str) -> PyMesh
+        ds.load(index: int) -> PyMesh
+        """
         if type(arg) is int:
             arg = self.meshes[arg]
         return PyMesh.load(arg)
@@ -225,8 +241,8 @@ cdef class PyMesh:
         def __get__(self):
             return self.thisptr.groupCount()
 
-    def getVerteces(self):
-        return <object>self.thisptr.getVerteces()
+    def getVertices(self):
+        return <object>self.thisptr.getVertices()
     
     def getFaces(self):
         return <object>self.thisptr.getFaces()
@@ -235,6 +251,11 @@ cdef class PyMesh:
         return <object>self.thisptr.getEdges()
     
     def getGroup(self, index):
+        if type(index) is str:
+            try:
+                return [group for group in self.getGroups() if group.name == index][0]
+            except Exception:
+                return None
         ret = DatasetGroup()
         ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.getGroup(index)
         ret.thisdata = new Data(ret.thisptr)
@@ -244,7 +265,45 @@ cdef class PyMesh:
         ret = []
         for i in range(0,self.groupCount):
             ret.append(self.getGroup(i))
-        return ret;
+        return ret
+        
+    def getMeshio(self):
+        vertices = self.getVertices()
+        if self.faceCount == 0:
+            if self.edgeCount == 0:
+                return None
+            edges = self.getEdges()
+            cells =[
+                ("line", npy.stack((edges['START'],edges['END']),1))
+            ]
+        else:
+            faces = self.getFaces()
+            lines = faces[faces['Vertices'] == 2]
+            tris = faces[faces['Vertices'] == 3]
+            quads = faces[faces['Vertices'] == 4]
+            cells = []
+            if len(lines) > 0:
+                cells.append(("line",npy.stack((faces['V0'], faces['V1']), 1)))
+            if len(tris) > 0:
+                cells.append(("triangle",npy.stack((faces['V0'], faces['V1'], faces['V2']), 1)))
+            if len(quads) > 0:
+                cells.append(("quad",npy.stack((faces['V0'], faces['V1'], faces['V2'], faces['V3']), 1)))
+                
+        point_data = {}
+        cell_data = {}
+        for group in self.getGroups():
+            if group.location == 1 and group.hasScalar:
+                point_data.update({group.name: group.getDataAsDouble(0)['U']})
+            elif group.location == 2 and group.hasScalar:
+                cell_data.update({group.name: group.getDataAsDouble(0)['U']})
+            elif group.location == 4 and group.hasScalar:
+                cell_data.update({group.name: group.getDataAsDouble(0)['U']})
+        return meshio.Mesh(
+            npy.stack((vertices['X'], vertices['Y'], vertices['Z']), 1),
+            cells,
+            point_data,
+            cell_data
+        )
 
 
 cdef extern from "DatasetGroup.hpp" namespace "mdal::python":

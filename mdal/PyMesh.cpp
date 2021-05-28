@@ -75,7 +75,7 @@ Mesh::Mesh(const char* uri) : m_verteces(nullptr), m_faces(nullptr), m_edges(nul
     }
 }
 
-PyArrayObject *Mesh::getVerteces() 
+PyArrayObject *Mesh::getVertices() 
 {
     if (! m_verteces) {
         PyObject* dict = PyDict_New();
@@ -143,7 +143,7 @@ PyArrayObject *Mesh::getFaces()
         PyObject* formats = PyList_New(maxFaceVertex() + 1);
         PyObject* titles = PyList_New(maxFaceVertex() + 1);
 
-        PyList_SetItem(titles, 0, PyUnicode_FromString("Verteces"));
+        PyList_SetItem(titles, 0, PyUnicode_FromString("Vertices"));
         PyList_SetItem(formats, 0, PyUnicode_FromString("u4"));
 
         for (int i = 0; i < maxFaceVertex();i++)
@@ -346,7 +346,7 @@ MeshIter& Mesh::iterator()
 
 MeshIter::MeshIter(Mesh& mesh)
 {
-    m_iter = NpyIter_New(mesh.getVerteces(),
+    m_iter = NpyIter_New(mesh.getVertices(),
         NPY_ITER_EXTERNAL_LOOP | NPY_ITER_READONLY | NPY_ITER_REFS_OK,
         NPY_KEEPORDER, NPY_NO_CASTING, NULL);
     //if (!m_iter)

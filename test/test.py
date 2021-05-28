@@ -32,7 +32,7 @@ print(f"Edge Count : {mesh.edgeCount}")
 print(f"CRS : {mesh.projection}")
 print(f"Mesh extent : {mesh.extent}")
 
-vertex = mesh.getVerteces()
+vertex = mesh.getVertices()
 print(f"Vertex Array Shape : {vertex.shape}")
 
 faces = mesh.getFaces()

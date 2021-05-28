@@ -60,7 +60,7 @@ public:
 
     ~Mesh();
 
-    PyArrayObject *getVerteces();
+    PyArrayObject *getVertices();
     PyArrayObject *getFaces();
     PyArrayObject *getEdges();
 
