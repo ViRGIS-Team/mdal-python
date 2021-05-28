@@ -2,6 +2,9 @@
 MDAL Python Integration
 ================================================================================
 
+Basics
+------
+
 MDAL Python integration allows you to access and manipulation geospatial mesh data sets using `MDAL`_ in Python.
 
 Currently, this integration can:
@@ -17,8 +20,13 @@ This version does not currently allow the MDAL source mesh to be written or amme
 .. _MDAL: https://mdal.xyz
 .. _meshio: https://github.com/nschloe/meshio
 
+Drivers
+.......
+
+
+
 Installation
---------------------------------------------------------------------------------
+------------
 
 Conda
 ................................................................................
@@ -101,6 +109,11 @@ The basic usage can be seen in this code snippet:
 
     data = group.getDataAsDouble(0)
     print(f"Dataset Shape : {data.shape}")
+
+Documentation
+-------------
+
+The documentation is currently WIP and can be found at https://virgis-team.github.io/mdal-python/
 
 
 Requirements
