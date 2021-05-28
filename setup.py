@@ -48,9 +48,9 @@ long_description = readme + '\n\n' +  changes
 # https://github.com/ktbarrett/hello/blob/master/CMakeLists.txt
 
 setup_args = dict(
-    name                = 'MDAL',
+    name                = 'mdal',
     version             = str(module_version),
-    requires            = ['Python (>=3.0)', 'Numpy'],
+    requires            = ['Python (>=3.0)', 'Numpy','meshio'],
     description         = 'Mesh data processing',
     license             = 'MIT',
     keywords            = 'mesh data spatial',
@@ -67,7 +67,7 @@ setup_args = dict(
     ],
     include_package_data = False,
     classifiers         = [
-        'Development Status :: 5 - Production/Stable',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
@@ -75,6 +75,7 @@ setup_args = dict(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Topic :: Scientific/Engineering :: GIS',
     ],
 
