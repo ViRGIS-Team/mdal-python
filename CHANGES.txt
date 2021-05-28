@@ -1,33 +1,16 @@
 Changes
 --------------------------------------------------------------------------------
 
-2.3.5
-................................................................................
+0.9.0
 
-* Fix memory leak https://github.com/PDAL/python/pull/74
-* Handle metadata with invalid unicode by erroring https://github.com/PDAL/python/pull/74
+First release. This is beta software and has not been completely tested yet:
 
-2.3.0
-................................................................................
+Currently, this integration can:
 
-* PDAL Python support 2.3.0 requires PDAL 2.1+. Older PDAL base libraries
-  likely will not work.
+- read all MDAL compatible file formats,
+- access the metadata for the source,
+- access the vertex, face and edge data as numpy arrays,
+- access 'double' datasets (both scalar and vector) as numpy arrays, and
+- convert the MDAL source mesh into a `meshio`_ mesh object (with some restrictions currently).
 
-* Python support built using scikit-build
-
-* readers.numpy and filters.python are installed along with the extension.
-
-* Pipeline can take in a list of arrays that are passed to readers.numpy
-
-* readers.numpy now supports functions that return arrays. See
-  https://pdal.io/stages/readers.numpy.html for more detail.
-
-2.0.0
-................................................................................
-
-* PDAL Python extension is now in its own repository on its own release
-  schedule at https://github.com/PDAL/python
-
-* Extension now builds and works under PDAL OSGeo4W64 on Windows.
-
-
+This version does not currently allow the MDAL source mesh to be written or ammended.
