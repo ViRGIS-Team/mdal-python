@@ -114,3 +114,9 @@ Requirements
 * scikit-build (eg :code:`pip install scikit-build`)
 
 
+Credit
+------
+
+This package borrowed heavily from the `PDAL-Python`_ package.
+
+.. _PDAL-Python:  https://github.com/PDAL/python
