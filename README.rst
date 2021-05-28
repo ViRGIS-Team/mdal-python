@@ -2,6 +2,9 @@
 MDAL Python Integration
 ================================================================================
 
+Basics
+------
+
 MDAL Python integration allows you to access and manipulation geospatial mesh data sets using `MDAL`_ in Python.
 
 Currently, this integration can:
@@ -14,11 +17,16 @@ Currently, this integration can:
 
 This version does not currently allow the MDAL source mesh to be written or ammended.
 
-.. _MDAL: https://mdal.xyz
+.. _MDAL: https://www.mdal.xyz/
 .. _meshio: https://github.com/nschloe/meshio
 
+Drivers
+.......
+
+['2DM Mesh File', 'XMS Tin Mesh File', 'Selafin File', 'Esri TIN', 'Stanford PLY Ascii Mesh File', 'Flo2D', 'HEC-RAS 2D', 'TUFLOW FV', 'AnuGA', 'UGRID Results', 'GDAL NetCDF', 'GDAL Grib', 'DAT', 'Binary DAT', 'TUFLOW XMDF', 'XDMF']
+
 Installation
---------------------------------------------------------------------------------
+------------
 
 Conda
 ................................................................................
@@ -102,6 +110,11 @@ The basic usage can be seen in this code snippet:
     data = group.getDataAsDouble(0)
     print(f"Dataset Shape : {data.shape}")
 
+Documentation
+-------------
+
+The documentation is currently WIP and can be found at https://virgis-team.github.io/mdal-python/html/index.html
+
 
 Requirements
 ------------
@@ -114,3 +127,9 @@ Requirements
 * scikit-build (eg :code:`pip install scikit-build`)
 
 
+Credit
+------
+
+This package borrowed heavily from the `PDAL-Python`_ package.
+
+.. _PDAL-Python:  https://github.com/PDAL/python
