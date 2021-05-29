@@ -34,9 +34,10 @@
 
 #include "PyMesh.hpp"
 
-#include <numpy/arrayobject.h>
+#include <numpy/ndarrayobject.h>
 #include <string>
 #include <cmath>
+#include <cstring>
 
 
 namespace mdal

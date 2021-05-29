@@ -37,3 +37,4 @@ _skbuild/
 dist/
 build/
 __pycache__
+mdal.egg-info/
