@@ -1,12 +1,11 @@
-import mdal
-from mdal import Datasource
+from mdal import Datasource, Info, getLastStatus
 
-print(f"MDAL Version:  {mdal.getVersionString()}")
-print(f"MDAL Driver Count :{mdal.getDriverCount()}")
-print(mdal.getLastStatus())
+print(f"MDAL Version:  {Info.version}")
+print(f"MDAL Driver Count :{Info.driverCount}")
+print(getLastStatus())
 
-for driver in mdal.getDrivers():
-    print(driver.long_name)
+for driver in Info.drivers:
+    print(driver)
 
 
 ds = Datasource("data/ply/test_mesh.ply")
@@ -55,6 +54,12 @@ print(f"Minimum / Maximum ; {group.minmax}")
 print(f"Metadata : {group.getMetadata()}")
 
 print("")
+for i in range(0, group.datasetCount):
+    data = group.getDataAsDouble(i)
+    time = group.getDatasetTime(i)
+    print(f"Dataset Shape for time {time} : {data.shape}")
 
-data = group.getDataAsDouble()
-print(f"Dataset Shape : {data.shape}")
+print("")
+
+meshio = mesh.getMeshio()
+print(meshio)
