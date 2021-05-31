@@ -6,7 +6,7 @@ from mdal.libmdalpython import version_string, \
     Datasource, \
     PyMesh, \
     DatasetGroup
-__version__ = '0.9.1'
+__version__ = '0.9.2'
 
 
 class Info(object):

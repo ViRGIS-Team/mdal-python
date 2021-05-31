@@ -59,6 +59,10 @@ Mesh::~Mesh()
 {
     if (m_verteces)
         Py_XDECREF((PyObject *)m_verteces);
+    if (m_faces)
+        Py_XDECREF((PyObject *)m_faces);
+    if (m_edges)
+        Py_XDECREF((PyObject *)m_edges);
     if (m_mdalMesh)
         MDAL_CloseMesh(m_mdalMesh);
 }

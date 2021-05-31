@@ -154,12 +154,12 @@ cdef class Driver:
 cdef class Datasource:
     """Wrapper for a Source of MDAL data - e.g. a file.
     
-    Init: Datasource(uri: str)
+    Init: Datasource(uri: str | PosixPath)
     """
     cdef string uri  # hold the uri reference for the datasource
 
-    def __cinit__(self, string uri):
-        self.uri = uri
+    def __cinit__(self, uri):
+        self.uri = str(uri)
 
     property meshes:
         """Returns a list of mesh uris"""
@@ -194,6 +194,13 @@ cdef class PyMesh:
         ret = PyMesh()
         ret.thisptr = new Mesh(bytes(uri, 'utf-8'))
         return ret
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        del self.thisptr
+        return False
 
     property vertex_count:
 
@@ -323,6 +330,9 @@ cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
 cdef class DatasetGroup:
     cdef MDAL_DatasetGroupH thisptr
     cdef Data* thisdata # cpp class instance used to marshall the data values
+
+    def __dealloc__(self):
+        del self.thisdata
 
     property location:
 
