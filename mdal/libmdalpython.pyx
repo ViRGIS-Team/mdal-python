@@ -71,22 +71,22 @@ cdef extern from "mdal.h":
     cdef double MDAL_D_time(MDAL_DatasetH dataset)
 
 
-def getVersionString():
+def version_string():
     """Returns MDAL version"""
     return MDAL_Version()
 
-def getLastStatus():
+def last_status():
     """Returns last status message"""
     return MDAL_LastStatus()
 
-def getDriverCount():
+def driver_count():
     """Returns count of registed MDAL drivers"""
     return MDAL_driverCount()
 
-def getDrivers():
+def drivers():
     """Returns the list of Drivers"""
     ret = []
-    for i in range(0, getDriverCount()):
+    for i in range(0, driver_count()):
         ret.append(Driver(i))
     return ret
 
@@ -134,20 +134,19 @@ cdef class Driver:
         def __get__(self):
             return MDAL_DR_filters(self.thisptr)
 
-    property saveMeshCapability:
+    property save_mesh_capability:
 
         def __get__(self):
             return MDAL_DR_saveMeshCapability(self.thisptr)
-
-    def getWriteDatasetCapability(self, location):
+    def write_dataset_capability(self, location):
         return MDAL_DR_writeDatasetsCapability(self.thisptr, location)
 
-    property writeDatasetsSuffix:
+    property write_datasets_suffix:
 
         def __get__(self):
             return MDAL_DR_writeDatasetsSuffix(self.thisptr)
 
-    property meshLoadCapability:
+    property mesh_load_capability:
 
         def __get__(self):
             return MDAL_DR_meshLoadCapability(self.thisptr)
@@ -165,11 +164,11 @@ cdef class Datasource:
     property meshes:
         """Returns a list of mesh uris"""
         def __get__(self):
-         return self.getMeshNames().split(";;")
+         return self.mesh_name_string().split(";;")
 
-    def getMeshNames(self):
+    def mesh_name_string(self):
         ret = MDAL_MeshNames(bytes(self.uri, 'utf-8'))
-        status = getLastStatus()
+        status = last_status()
         if status != 0:
             raise IndexError("No Meshes Found" + str(status))
         return ret
@@ -196,22 +195,22 @@ cdef class PyMesh:
         ret.thisptr = new Mesh(bytes(uri, 'utf-8'))
         return ret
 
-    property vertexCount:
+    property vertex_count:
 
         def __get__(self):
             return self.thisptr.vertexCount()
 
-    property faceCount:
+    property face_count:
 
         def __get__(self):
             return self.thisptr.faceCount()
 
-    property edgeCount:
+    property edge_count:
 
         def __get__(self):
             return self.thisptr.edgeCount()
 
-    property largestFace:
+    property largest_face:
 
         def __get__(self):
             return self.thisptr.maxFaceVertex()
@@ -231,26 +230,32 @@ cdef class PyMesh:
             self.thisptr.getExtent(&minX, &maxX, &minY, &maxY)
             return (minX, maxX, minY, maxY)
 
-    property driverName:
+    property driver_name:
     
         def __get__(self):
             return self.thisptr.getDriverName()
 
-    property groupCount:
+    property group_count:
 
         def __get__(self):
             return self.thisptr.groupCount()
 
-    def getVertices(self):
-        return <object>self.thisptr.getVertices()
+    property vertices:
     
-    def getFaces(self):
-        return <object>self.thisptr.getFaces()
+        def __get__(self):
+            return <object>self.thisptr.getVertices()
+    
+    property faces:
+    
+        def __get__(self):
+            return <object>self.thisptr.getFaces()
 
-    def getEdges(self):
-        return <object>self.thisptr.getEdges()
+    property edges:
     
-    def getGroup(self, index):
+        def __get__(self):
+            return <object>self.thisptr.getEdges()
+    
+    def group(self, index):
         if type(index) is str:
             try:
                 return [group for group in self.getGroups() if group.name == index][0]
@@ -261,23 +266,25 @@ cdef class PyMesh:
         ret.thisdata = new Data(ret.thisptr)
         return ret
 
-    def getGroups(self):
-        ret = []
-        for i in range(0,self.groupCount):
-            ret.append(self.getGroup(i))
-        return ret
+    property groups:
+
+        def __get__(self):
+            ret = []
+            for i in range(0,self.group_count):
+                ret.append(self.group(i))
+            return ret
         
-    def getMeshio(self):
-        vertices = self.getVertices()
-        if self.faceCount == 0:
-            if self.edgeCount == 0:
+    def meshio(self):
+        vertices = self.vertices
+        if self.face_count == 0:
+            if self.edge_count == 0:
                 return None
-            edges = self.getEdges()
+            edges = self.edges
             cells =[
                 ("line", npy.stack((edges['START'],edges['END']),1))
             ]
         else:
-            faces = self.getFaces()
+            faces = self.faces
             lines = faces[faces['Vertices'] == 2]
             tris = faces[faces['Vertices'] == 3]
             quads = faces[faces['Vertices'] == 4]
@@ -291,13 +298,13 @@ cdef class PyMesh:
                 
         point_data = {}
         cell_data = {}
-        for group in self.getGroups():
-            if group.location == 1 and group.hasScalar:
-                point_data.update({group.name: group.getDataAsDouble(0)['U']})
-            elif group.location == 2 and group.hasScalar:
-                cell_data.update({group.name: group.getDataAsDouble(0)['U']})
-            elif group.location == 4 and group.hasScalar:
-                cell_data.update({group.name: group.getDataAsDouble(0)['U']})
+        for group in self.groups:
+            if group.location == 1 and group.has_scalar:
+                point_data.update({group.name: group.data_as_double(0)['U']})
+            elif group.location == 2 and group.has_scalar:
+                cell_data.update({group.name: group.data_as_double(0)['U']})
+            elif group.location == 4 and group.has_scalar:
+                cell_data.update({group.name: group.aata_as_double(0)['U']})
         return meshio.Mesh(
             npy.stack((vertices['X'], vertices['Y'], vertices['Z']), 1),
             cells,
@@ -327,27 +334,27 @@ cdef class DatasetGroup:
         def __get__(self):
             return MDAL_G_name(self.thisptr)
 
-    property datasetCount:
+    property dataset_count:
 
         def __get__(self):
             return MDAL_G_datasetCount(self.thisptr)
 
-    property hasScalar:
+    property has_scalar:
 
         def __get__(self):
             return MDAL_G_hasScalarData(self.thisptr)
 
-    property isTemporal:
+    property is_temporal:
 
         def __get__(self):
             return MDAL_G_isTemporal(self.thisptr)
 
-    property referenceTime:
+    property reference_time:
 
         def __get__(self):
             return MDAL_G_referenceTime(self.thisptr)
 
-    property levelCount:
+    property level_count:
 
         def __get__(self):
             return MDAL_G_maximumVerticalLevelCount(self.thisptr)
@@ -360,13 +367,15 @@ cdef class DatasetGroup:
             MDAL_G_minimumMaximum(self.thisptr, &min, &max)
             return (min, max)
 
-    def getMetadata(self):
-        return self.thisdata.getMetadata()
+    property metadata:
 
-    def getDataAsDouble(self, index=0):
+        def __get__(self):
+            return self.thisdata.getMetadata()
+
+    def data_as_double(self, index=0):
         return <object>self.thisdata.getDataAsDouble(index)
 
-    def getDatasetTime(self, index):
+    def dataset_time(self, index):
         return MDAL_D_time(MDAL_G_dataset(self.thisptr, index))
 
 
