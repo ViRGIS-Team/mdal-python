@@ -2,6 +2,9 @@
 MDAL Python Integration
 ================================================================================
 
+.. image:: https://img.shields.io/conda/vn/conda-forge/mdal-python.svg
+   :target: https://anaconda.org/conda-forge/mdal-python)
+
 Basics
 ------
 
