@@ -158,7 +158,7 @@ cdef class Datasource:
     """
     cdef string uri  # hold the uri reference for the datasource
 
-    def __cinit__(self, uri):
+    def __cinit__(self, uri):   
         self.uri = str(uri)
 
     property meshes:
@@ -183,141 +183,159 @@ cdef class Datasource:
         """
         if type(arg) is int:
             arg = self.meshes[arg]
-        return PyMesh.load(arg)
+        return PyMesh(arg)
     
 
 cdef class PyMesh:
     cdef Mesh* thisptr
+    cdef bool valid
 
-    @classmethod
-    def load(cls, uri):
-        ret = PyMesh()
-        ret.thisptr = new Mesh(bytes(uri, 'utf-8'))
-        return ret
+    def __cinit__(self, uri):
+        self.thisptr = new Mesh(bytes(uri, 'utf-8'))
+        self.valid = True
+
+    def __dealloc__(self):
+        if self.valid:
+            del self.thisptr
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
         del self.thisptr
+        self.valid = False
         return False
 
     property vertex_count:
 
         def __get__(self):
-            return self.thisptr.vertexCount()
+            if self.valid:
+                return self.thisptr.vertexCount()
 
     property face_count:
 
         def __get__(self):
-            return self.thisptr.faceCount()
+            if self.valid:
+                return self.thisptr.faceCount()
 
     property edge_count:
 
         def __get__(self):
-            return self.thisptr.edgeCount()
+            if self.valid:
+                return self.thisptr.edgeCount()
 
     property largest_face:
 
         def __get__(self):
-            return self.thisptr.maxFaceVertex()
+            if self.valid:
+                return self.thisptr.maxFaceVertex()
 
     property projection:
 
         def __get__(self):
-            return self.thisptr.getProjection();
+            if self.valid:
+                return self.thisptr.getProjection();
 
     property extent:
 
         def __get__(self):
-            minX = <double>0
-            minY = <double>0
-            maxX = <double>0
-            maxY = <double>0
-            self.thisptr.getExtent(&minX, &maxX, &minY, &maxY)
-            return (minX, maxX, minY, maxY)
+            if self.valid:
+                minX = <double>0
+                minY = <double>0
+                maxX = <double>0
+                maxY = <double>0
+                self.thisptr.getExtent(&minX, &maxX, &minY, &maxY)
+                return (minX, maxX, minY, maxY)
 
     property driver_name:
     
         def __get__(self):
-            return self.thisptr.getDriverName()
+            if self.valid:
+                return self.thisptr.getDriverName()
 
     property group_count:
 
         def __get__(self):
-            return self.thisptr.groupCount()
+            if self.valid:
+                return self.thisptr.groupCount()
 
     property vertices:
     
         def __get__(self):
-            return <object>self.thisptr.getVertices()
+            if self.valid:
+                return <object>self.thisptr.getVertices()
     
     property faces:
     
         def __get__(self):
-            return <object>self.thisptr.getFaces()
+            if self.valid:
+                return <object>self.thisptr.getFaces()
 
     property edges:
     
         def __get__(self):
-            return <object>self.thisptr.getEdges()
+            if self.valid:
+                return <object>self.thisptr.getEdges()
     
     def group(self, index):
-        if type(index) is str:
-            try:
-                return [group for group in self.getGroups() if group.name == index][0]
-            except Exception:
-                return None
-        ret = DatasetGroup()
-        ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.getGroup(index)
-        ret.thisdata = new Data(ret.thisptr)
-        return ret
+        if self.valid:
+            if type(index) is str:
+                try:
+                    return [group for group in self.getGroups() if group.name == index][0]
+                except Exception:
+                    return None
+            ret = DatasetGroup()
+            ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.getGroup(index)
+            ret.thisdata = new Data(ret.thisptr)
+            return ret
 
     property groups:
 
         def __get__(self):
-            ret = []
-            for i in range(0,self.group_count):
-                ret.append(self.group(i))
-            return ret
+            if self.valid:
+                ret = []
+                for i in range(0,self.group_count):
+                    ret.append(self.group(i))
+                return ret
         
     def meshio(self):
-        vertices = self.vertices
-        if self.face_count == 0:
-            if self.edge_count == 0:
-                return None
-            edges = self.edges
-            cells =[
-                ("line", npy.stack((edges['START'],edges['END']),1))
-            ]
-        else:
-            faces = self.faces
-            lines = faces[faces['Vertices'] == 2]
-            tris = faces[faces['Vertices'] == 3]
-            quads = faces[faces['Vertices'] == 4]
-            cells = []
-            if len(lines) > 0:
-                cells.append(("line",npy.stack((faces['V0'], faces['V1']), 1)))
-            if len(tris) > 0:
-                cells.append(("triangle",npy.stack((faces['V0'], faces['V1'], faces['V2']), 1)))
-            if len(quads) > 0:
-                cells.append(("quad",npy.stack((faces['V0'], faces['V1'], faces['V2'], faces['V3']), 1)))
-                
-        point_data = {}
-        cell_data = {}
-        for group in self.groups:
-            if group.location == 1 and group.has_scalar:
-                point_data.update({group.name: group.data_as_double(0)['U']})
-            elif group.location == 2 and group.has_scalar:
-                cell_data.update({group.name: group.data_as_double(0)['U']})
-            elif group.location == 4 and group.has_scalar:
-                cell_data.update({group.name: group.aata_as_double(0)['U']})
-        return meshio.Mesh(
-            npy.stack((vertices['X'], vertices['Y'], vertices['Z']), 1),
-            cells,
-            point_data,
-            cell_data
-        )
+        if self.valid:
+            vertices = self.vertices
+            if self.face_count == 0:
+                if self.edge_count == 0:
+                    return None
+                edges = self.edges
+                cells =[
+                    ("line", npy.stack((edges['START'],edges['END']),1))
+                ]
+            else:
+                faces = self.faces
+                lines = faces[faces['Vertices'] == 2]
+                tris = faces[faces['Vertices'] == 3]
+                quads = faces[faces['Vertices'] == 4]
+                cells = []
+                if len(lines) > 0:
+                    cells.append(("line",npy.stack((faces['V0'], faces['V1']), 1)))
+                if len(tris) > 0:
+                    cells.append(("triangle",npy.stack((faces['V0'], faces['V1'], faces['V2']), 1)))
+                if len(quads) > 0:
+                    cells.append(("quad",npy.stack((faces['V0'], faces['V1'], faces['V2'], faces['V3']), 1)))
+                    
+            point_data = {}
+            cell_data = {}
+            for group in self.groups:
+                if group.location == 1 and group.has_scalar:
+                    point_data.update({group.name: group.data_as_double(0)['U']})
+                elif group.location == 2 and group.has_scalar:
+                    cell_data.update({group.name: group.data_as_double(0)['U']})
+                elif group.location == 4 and group.has_scalar:
+                    cell_data.update({group.name: group.aata_as_double(0)['U']})
+            return meshio.Mesh(
+                npy.stack((vertices['X'], vertices['Y'], vertices['Z']), 1),
+                cells,
+                point_data,
+                cell_data
+            )
 
 
 cdef extern from "DatasetGroup.hpp" namespace "mdal::python":

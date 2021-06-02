@@ -1,4 +1,4 @@
-from mdal import Datasource, Info, last_status
+from mdal import Datasource, PyMesh, Info, last_status
 
 print(f"MDAL Version:  {Info.version}")
 print(f"MDAL Driver Count :{Info.driver_count}")
@@ -11,21 +11,7 @@ for driver in Info.drivers:
 ds = Datasource("data/ply/test_mesh.ply")
 print(ds.meshes)
 
-with ds.load(0) as mesh:
-    print(f"Driver : {mesh.driver_name}")
-    print(f"Vertex Count : {mesh.vertex_count}")
-    print(f"Face Count : {mesh.face_count}")
-    print(f"Largest Face: {mesh.largest_face}")
-    print(f"Edge Count : {mesh.edge_count}")
-    print(f"CRS : {mesh.projection}")
-    print(f"Mesh extent : {mesh.extent}")
-    print(f"DatasetGroup Count : {mesh.group_count}")
-
-print("finish first pass")
-print(f"Loading uri {ds.meshes[0]}")
-
-
-with ds.load(ds.meshes[0]) as mesh:
+with PyMesh(ds.meshes[0]) as mesh:
     print(f"Driver : {mesh.driver_name}")
     print(f"Vertex Count : {mesh.vertex_count}")
     print(f"Face Count : {mesh.face_count}")
@@ -65,4 +51,7 @@ with ds.load(ds.meshes[0]) as mesh:
     print("")
 
     meshio = mesh.meshio()
-    print(meshio)
+
+print(meshio)
+print(mesh)
+print(mesh.vertex_count)
