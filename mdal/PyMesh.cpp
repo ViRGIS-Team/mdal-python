@@ -306,7 +306,7 @@ const char* Mesh::getProjection()
 {
     if (m_mdalMesh)
         return MDAL_M_projection(m_mdalMesh);
-    return NULL;
+    return nullptr;
 }
 
 void Mesh::getExtent(double* minX, double* maxX, double* minY, double* maxY)

@@ -169,7 +169,7 @@ cdef class Datasource:
     def mesh_name_string(self):
         ret = MDAL_MeshNames(bytes(self.uri, 'utf-8'))
         status = last_status()
-        if status != 0:
+        if ret == "" or status != 0:
             raise IndexError("No Meshes Found" + str(status))
         return ret
 
