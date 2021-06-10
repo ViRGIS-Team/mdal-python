@@ -8,7 +8,7 @@ for driver in Info.drivers:
     print(driver)
 
 
-ds = Datasource("data/ply/test_mesh.ply")
+ds = Datasource("data/ply/testmesh.ply")
 print(ds.meshes)
 
 with PyMesh(ds.meshes[0]) as mesh:
