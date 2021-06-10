@@ -58,7 +58,7 @@ cdef extern from "mdal.h":
     cdef string MDAL_DR_name( MDAL_DriverH driver )
     cdef string MDAL_DR_longName( MDAL_DriverH driver )
     cdef string MDAL_DR_filters( MDAL_DriverH driver )
-    cdef string MDAL_MeshNames(  char* uri )
+    cdef char* MDAL_MeshNames(  char* uri )
     cdef MDAL_DataLocation MDAL_G_dataLocation(MDAL_DatasetGroupH group)
     cdef string MDAL_G_name(MDAL_DatasetGroupH group)
     cdef int MDAL_G_datasetCount(MDAL_DatasetGroupH group)
