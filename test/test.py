@@ -1,4 +1,4 @@
-from mdal import Datasource, PyMesh, Info, last_status
+from mdal import Datasource, Info, last_status
 
 print(f"MDAL Version:  {Info.version}")
 print(f"MDAL Driver Count :{Info.driver_count}")
@@ -8,10 +8,10 @@ for driver in Info.drivers:
     print(driver)
 
 
-ds = Datasource("data/ply/testmesh.ply")
+ds = Datasource("data/ply/test_mesh.ply")
 print(ds.meshes)
 
-with PyMesh(ds.meshes[0]) as mesh:
+with ds.load(0) as mesh:
     print(f"Driver : {mesh.driver_name}")
     print(f"Vertex Count : {mesh.vertex_count}")
     print(f"Face Count : {mesh.face_count}")
