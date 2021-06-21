@@ -1,3 +1,4 @@
+"""
 /******************************************************************************
 * Copyright (c) 2021, Runette Software Ltd (www.runette.co.uk)
 *
@@ -13,7 +14,7 @@
 *       notice, this list of conditions and the following disclaimer in
 *       the documentation and/or other materials provided
 *       with the distribution.
-*     * Neither the name of Runette SOftware. nor the
+*     * Neither the name of Runette Software nor the
 *       names of its contributors may be used to endorse or promote
 *       products derived from this software without specific prior
 *       written permission.
@@ -31,71 +32,26 @@
 * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
 * OF SUCH DAMAGE.
 ****************************************************************************/
+"""
 
-#pragma once
+from mdal import Info, drivers
+from tabulate import tabulate
 
-#include <numpy/ndarraytypes.h>
-#include "mdal.h"
+print(f"MDAL Version:  {Info.version}")
+print(f"MDAL Driver Count :{Info.driver_count}")
 
-#include <utility>
-#include <memory>
-#include <array>
-#include <vector>
+data = []
 
-namespace mdal
-{
-namespace python
-{
-class MeshIter;
+for driver in drivers():
+    data.append([driver.name,
+                 driver.long_name,
+                 driver.mesh_load_capability,
+                 driver.save_mesh_capability,
+                 driver.write_dataset_capability(1),
+                 driver.write_dataset_capability(2),
+                 driver.write_dataset_capability(4),
+                 driver.write_dataset_capability(3)
+                 ])
 
-class Mesh
-{
-public:
-    using Shape = std::array<size_t, 3>;
-
-    bool hasMesh;
-
-    Mesh(const char* uri);
-    Mesh();
-    Mesh(MDAL_DriverH drv);
-
-    ~Mesh();
-    
-    bool save(const char* uri);
-    bool save(const char* uri, const char* drv);
-
-    PyArrayObject *getVertices();
-    PyArrayObject *getFaces();
-    PyArrayObject *getEdges();
-    
-    bool addVertices(PyArrayObject* vertices);
-    bool addFaces(PyArrayObject* faces, long int count);
-    bool addEdges(PyArrayObject* edges);
-    bool addGroup(MDAL_DataLocation loc)
-
-    int vertexCount();
-    int edgeCount();
-    int faceCount();
-    int groupCount();
-    int maxFaceVertex();
-    const char* getProjection();
-    void getExtent(double* minX, double* maxX, double* minY, double* maxY);
-    const char* getDriverName();
-    MDAL_DatasetGroupH getGroup(int index);
-
-
-private:
-
-    PyArrayObject *m_vertices;
-    PyArrayObject *m_faces;
-    PyArrayObject *m_edges;
-    MDAL_MeshH m_mdalMesh;
-
-    Mesh& operator=(Mesh const& rhs);
-};
-
-  
-
-} // namespace python
-} // namespace mdal
-
+print(tabulate(data, headers = [
+      "Driver", "Description", "Load Mesh", "Save Mesh", "Vertex Data", "Face Data", "Edge Date", "Volume Data"], tablefmt="rst"))

@@ -5,7 +5,10 @@ from mdal.libmdalpython import version_string, \
     drivers, \
     Datasource, \
     PyMesh, \
-    DatasetGroup
+    DatasetGroup, \
+    MDAL_Status, \
+    MDAL_DataLocation \
+
 __version__ = '0.9.3'
 
 

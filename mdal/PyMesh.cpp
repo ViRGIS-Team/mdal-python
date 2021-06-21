@@ -38,27 +38,49 @@
 #include <string>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 
 
 namespace mdal
 {
 namespace python
 {
+    
+std::string toString(PyObject *pname)
+{
+    PyObject* r = PyObject_Str(pname);
+    if (!r) {}
+        //throw pdal_error("couldn't make string representation value");
+    Py_ssize_t size;
+    return std::string(PyUnicode_AsUTF8AndSize(r, &size));
+}
 
 // Create new empty mesh
 //
-Mesh::Mesh() : m_verteces(nullptr), m_faces(nullptr), m_edges(nullptr), m_mdalMesh(nullptr)
+
+Mesh::Mesh()
 {
     hasMesh = false;
     if (_import_array() < 0)
         {}
         //throw pdal_error("Could not import numpy.core.multiarray.");
+    MDAL_DriverH drv = MDAL_driverFromName("Ugrid");
+    m_mdalMesh = MDAL_CreateMesh(drv);
+}
+
+Mesh::Mesh(MDAL_DriverH drv) : m_vertices(nullptr), m_faces(nullptr), m_edges(nullptr), m_mdalMesh(nullptr)
+{
+    hasMesh = false;
+    if (_import_array() < 0)
+        {}
+        //throw pdal_error("Could not import numpy.core.multiarray.");
+    m_mdalMesh = MDAL_CreateMesh(drv);
 }
 
 Mesh::~Mesh()
 {
-    if (m_verteces)
-        Py_XDECREF((PyObject *)m_verteces);
+    if (m_vertices)
+        Py_XDECREF((PyObject *)m_vertices);
     if (m_faces)
         Py_XDECREF((PyObject *)m_faces);
     if (m_edges)
@@ -70,7 +92,7 @@ Mesh::~Mesh()
 //
 // Load from uri
 //
-Mesh::Mesh(const char* uri) : m_verteces(nullptr), m_faces(nullptr), m_edges(nullptr), m_mdalMesh(nullptr)
+Mesh::Mesh(const char* uri) : m_vertices(nullptr), m_faces(nullptr), m_edges(nullptr), m_mdalMesh(nullptr)
 {
     if (_import_array() < 0)
         return;
@@ -80,9 +102,26 @@ Mesh::Mesh(const char* uri) : m_verteces(nullptr), m_faces(nullptr), m_edges(nul
     }
 }
 
+//
+// Save the mesh//
+bool Mesh::save(const char* uri)
+{
+    return save(uri, MDAL_M_driverName(m_mdalMesh));
+}
+
+bool Mesh::save(const char* uri, const char* drv)
+{
+    MDAL_SaveMesh(m_mdalMesh, uri, drv);
+    if (MDAL_LastStatus() != MDAL_Status::None)
+    {
+        return false;
+    }
+    return true;
+}
+
 PyArrayObject *Mesh::getVertices() 
 {
-    if (! m_verteces) {
+    if (! m_vertices) {
         PyObject* dict = PyDict_New();
         PyObject* formats = PyList_New(3);
         PyObject* titles = PyList_New(3);
@@ -106,23 +145,22 @@ PyArrayObject *Mesh::getVertices()
         npy_intp size = (npy_intp)vertexCount();
 
         // This is a 1 x size array.
-        m_verteces = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+        m_vertices = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
                 1, &size, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
 
         MDAL_MeshVertexIteratorH vi = MDAL_M_vertexIterator(m_mdalMesh);
 
         double* buffer = new double[3072];
         size_t count = 0;
-        int bufs = std::ceil(size/1024);
-        if (bufs == 0) bufs = 1;
+        size_t t_count = 0;
 
-        for (int j = 0; j < bufs; j++)
+        while(t_count < vertexCount())
         {
             count = MDAL_VI_next(vi, 1024, buffer);
             int idx = 0;
             for (int i = 0; i < count; i++) 
             {
-                char* p = (char *)PyArray_GETPTR1(m_verteces, (1024 * j) + i);
+                char* p = (char *)PyArray_GETPTR1(m_vertices, t_count + i);
                 
                 double x = buffer[idx];
                 idx++;
@@ -134,11 +172,12 @@ PyArrayObject *Mesh::getVertices()
                 std::memcpy(p + 8, &y, 8);
                 std::memcpy(p + 16, &z,  8);
             }
+            t_count += count;
         }
         delete [] buffer;
         MDAL_VI_close(vi);
     }
-    return m_verteces;
+    return m_vertices;
 }
 
 PyArrayObject *Mesh::getFaces() 
@@ -245,27 +284,225 @@ PyArrayObject *Mesh::getEdges()
         int* sbuffer = new int[1024];
         int* ebuffer = new int[1024];
         size_t count = 0;
-        int bufs = std::ceil(size/1024);
-        if (bufs == 0) bufs = 1;
+        size_t t_count = 0;
 
-        for (int j = 0; j < bufs; j++)
+        while (t_count < edgeCount())
         {
             count = MDAL_EI_next(ei, 1024, sbuffer, ebuffer);
             for (int i = 0; i < count; i++) 
             {
-                char* p = (char *)PyArray_GETPTR1(m_edges, (1024 * j) + i);
+                char* p = (char *)PyArray_GETPTR1(m_edges, t_count + i);
                 
                 uint32_t s = (uint32_t)sbuffer[i];
                 uint32_t e = (uint32_t)ebuffer[i];
                 std::memcpy(p, &s, 4);
                 std::memcpy(p + 4, &e, 4);
             }
+            t_count += count;
         }
         delete [] sbuffer;
         delete [] ebuffer;
         MDAL_EI_close(ei);
     }
     return m_edges;
+}
+
+bool Mesh::addVertices(PyArrayObject* vertices){
+    if (_import_array() < 0)
+    {
+        return false;
+    }
+    //throw pdal_error("Could not import numpy.core.multiarray.");
+    
+    Py_XINCREF(vertices);
+    
+    m_vertices = vertices;
+    
+    int xyz = 0;
+
+    PyArray_Descr *dtype = PyArray_DTYPE(m_vertices);
+    npy_intp ndims = PyArray_NDIM(m_vertices);
+    npy_intp *shape = PyArray_SHAPE(m_vertices);
+    size_t size = shape[0];
+    int numFields = (dtype->fields == Py_None) ?
+        0 :
+        static_cast<int>(PyDict_Size(dtype->fields));
+
+    PyObject *names_dict = dtype->fields;
+    PyObject *names = PyDict_Keys(names_dict);
+    PyObject *values = PyDict_Values(names_dict);
+    if (!names || !values)
+    {
+        return false;
+    }
+    //throw pdal_error("Bad field specification in numpy array.");
+
+    size_t x_idx;
+    size_t y_idx;
+    size_t z_idx;
+    
+    for (int i = 0; i < numFields; ++i)
+    {
+        std::string name = toString(PyList_GetItem(names, i));
+        if (name == "X")
+        {
+            xyz |= 1;
+            x_idx = i;
+        }
+        else if (name == "Y")
+        {
+            xyz |= 2;
+            y_idx = i;
+        }
+        else if (name == "Z")
+        {
+            xyz |= 4;
+            z_idx = i;
+        }
+    }
+
+    if (xyz != 0 && xyz != 7) 
+    {
+        return false;
+    }
+        //throw pdal_error("Array fields must contain all or none "
+        //    "of X, Y and Z");
+    if (xyz == 0 && ndims != 3)
+    {
+        return false;
+    }
+        //throw pdal_error("Array without named X/Y/Z fields "
+        //        "must have three dimensions.");
+    if (xyz == 0)
+    {
+        x_idx = 0;
+        y_idx = 1;
+        z_idx = 2;
+    }
+    
+    double* v_array = new double[3 * size];
+    
+    for (int i = 0; i < size; i++) 
+    {
+        char* p = (char *)PyArray_GETPTR1(m_vertices, i);
+        
+        size_t idx = 3 * i;
+        double* x = &v_array[idx];
+        idx++;
+        double* y = &v_array[idx];
+        idx++;
+        double* z = &v_array[idx];
+        
+        std::memcpy(x,p + ( 8 * x_idx ), 8);
+        std::memcpy(y,p + ( 8 * y_idx ), 8);
+        std::memcpy(z,p + ( 8 * z_idx ), 8);
+
+    }
+    MDAL_M_addVertices(m_mdalMesh,size, v_array);
+    MDAL_Status status =  MDAL_LastStatus();
+    if (status != MDAL_Status::None) 
+        return false;
+    return true;
+}
+    
+bool Mesh::addFaces(PyArrayObject* faces, long int count){
+    if (_import_array() < 0) {}
+            //throw pdal_error("Could not import numpy.core.multiarray.");
+    
+    Py_XINCREF(faces);
+    
+    m_faces = faces;
+
+    PyArray_Descr *dtype = PyArray_DTYPE(m_faces);
+    npy_intp ndims = PyArray_NDIM(m_faces);
+    npy_intp *shape = PyArray_SHAPE(m_faces);
+    size_t size = shape[0];
+    int numFields = (dtype->fields == Py_None) ?
+        0 :
+        static_cast<int>(PyDict_Size(dtype->fields));
+
+    PyObject *names_dict = dtype->fields;
+    PyObject *names = PyDict_Keys(names_dict);
+    PyObject *values = PyDict_Values(names_dict);
+    if (!names || !values) {}
+        //throw pdal_error("Bad field specification in numpy array.");
+
+    if (numFields< 3) {}
+        //throw pdal_error("Faces"
+        //        "must have three dimensions.");
+    int* f_array = new int[count];
+    int* index_array = new int[size];
+    size_t idx = 0;
+    
+    for (int i = 0; i < size; i++) 
+    {
+        char* p = (char *)PyArray_GETPTR1(m_faces, i);
+        
+        int face_size;
+        std::memcpy(&face_size, p, 4);
+        index_array[i] = face_size;
+        
+        for (int j = 0; j < face_size; j++)
+        {
+            std::memcpy(&f_array[idx], p + (j + 1) * 4, 4);
+            idx++;
+        }
+    }
+    
+    MDAL_M_addFaces(m_mdalMesh, (int)size, index_array, f_array );
+    MDAL_Status status =  MDAL_LastStatus();
+    if (status != MDAL_Status::None) 
+        return false;
+    return true;
+}
+
+bool Mesh::addEdges(PyArrayObject* edges){
+    if (_import_array() < 0) {}
+            //throw pdal_error("Could not import numpy.core.multiarray.");
+    
+    Py_XINCREF(edges);
+    
+    m_edges = edges;
+
+    PyArray_Descr *dtype = PyArray_DTYPE(m_edges);
+    npy_intp ndims = PyArray_NDIM(m_edges);
+    npy_intp *shape = PyArray_SHAPE(m_edges);
+    int numFields = (dtype->fields == Py_None) ?
+        0 :
+        static_cast<int>(PyDict_Size(dtype->fields));
+
+    PyObject *names_dict = dtype->fields;
+    PyObject *names = PyDict_Keys(names_dict);
+    PyObject *values = PyDict_Values(names_dict);
+    if (!names || !values) {}
+        //throw pdal_error("Bad field specification in numpy array.");
+
+    if (numFields != 2) {}
+        //throw pdal_error("Array without named X/Y/Z fields "
+        //        "must have three dimensions.");
+        
+    int ab;
+        
+    for (int i = 0; i < numFields; ++i)
+    {
+        std::string name = toString(PyList_GetItem(names, i));
+        if (name == "START")
+            ab |= 1;
+        else if (name == "END")
+            ab |= 2;
+        PyObject *tup = PyList_GetItem(values, i);
+
+        // Get offset.
+        size_t offset = PyLong_AsLong(PySequence_Fast_GET_ITEM(tup, 1));
+
+        if (ab != 0 && ab != 3) {}
+            //throw pdal_error("Array fields must contain all or none "
+            //    "of X, Y and Z");
+        if (ab == 0 && ndims != 2) {}
+            //throw pdal_error("Array without named X/Y/Z fields "
+            //        "must have three dimensions.");
+    }
+    return true;
 }
 
 int Mesh::edgeCount() 
@@ -329,75 +566,6 @@ MDAL_DatasetGroupH Mesh::getGroup(int index)
         return MDAL_M_datasetGroup(m_mdalMesh, index);
     return nullptr;
 }
-
-
-bool Mesh::rowMajor() const
-{
-    return m_rowMajor;
-}
-
-Mesh::Shape Mesh::shape() const
-{
-    return m_shape;
-}
-
-
-MeshIter& Mesh::iterator()
-{
-    MeshIter *it = new MeshIter(*this);
-    m_iterators.push_back(std::unique_ptr<MeshIter>(it));
-    return *it;
-}
-
-MeshIter::MeshIter(Mesh& mesh)
-{
-    m_iter = NpyIter_New(mesh.getVertices(),
-        NPY_ITER_EXTERNAL_LOOP | NPY_ITER_READONLY | NPY_ITER_REFS_OK,
-        NPY_KEEPORDER, NPY_NO_CASTING, NULL);
-    //if (!m_iter)
-        //throw pdal_error("Unable to create numpy iterator.");
-
-    char *itererr;
-    m_iterNext = NpyIter_GetIterNext(m_iter, &itererr);
-    if (!m_iterNext)
-    {
-        NpyIter_Deallocate(m_iter);
-        //throw pdal_error(std::string("Unable to create numpy iterator: ") +
-            //itererr);
-    }
-    m_data = NpyIter_GetDataPtrArray(m_iter);
-    m_stride = NpyIter_GetInnerStrideArray(m_iter);
-    m_size = NpyIter_GetInnerLoopSizePtr(m_iter);
-    m_done = false;
-}
-
-MeshIter::~MeshIter()
-{
-    NpyIter_Deallocate(m_iter);
-}
-
-MeshIter& MeshIter::operator++()
-{
-    if (m_done)
-        return *this;
-
-    if (--(*m_size))
-        *m_data += *m_stride;
-    else if (!m_iterNext(m_iter))
-        m_done = true;
-    return *this;
-}
-
-MeshIter::operator bool () const
-{
-    return !m_done;
-}
-
-char * MeshIter::operator * () const
-{
-    return *m_data;
-}
-
 
 } // namespace python
 } // namespace mdal

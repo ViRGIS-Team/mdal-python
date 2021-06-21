@@ -1,6 +1,42 @@
 # distutils: language = c++
 # cython: c_string_type=unicode, c_string_encoding=utf8, embedsignature=True
 
+"""
+/******************************************************************************
+* Copyright (c) 2021, Runette Software Ltd (www.runette.co.uk)
+*
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following
+* conditions are met:
+*
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above copyright
+*       notice, this list of conditions and the following disclaimer in
+*       the documentation and/or other materials provided
+*       with the distribution.
+*     * Neither the name of Runette Software nor the
+*       names of its contributors may be used to endorse or promote
+*       products derived from this software without specific prior
+*       written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+* FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+* COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+* INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+* BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+* AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+* OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+* OF SUCH DAMAGE.
+****************************************************************************/
+"""
+
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libc.stdint cimport uint32_t, int64_t
@@ -77,7 +113,11 @@ def version_string():
 
 def last_status():
     """Returns last status message"""
-    return MDAL_LastStatus()
+    ret = MDAL_LastStatus()
+    if ret != 0:
+        return MDAL_Status(ret)
+    else:
+        return None
 
 def driver_count():
     """Returns count of registed MDAL drivers"""
@@ -94,6 +134,7 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
     cdef cppclass Mesh:
         Mesh() except +
         Mesh(char* uri) except +
+        Mesh(MDAL_DriverH drv) except +
         void *getVertices() except +
         void *getFaces() except +
         void *getEdges() except +
@@ -106,6 +147,11 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
         string getDriverName() except +
         int groupCount() except +
         MDAL_DatasetGroupH getGroup(int index) except +
+        bool addVertices(np.ndarray vertices) except +
+        bool addFaces(np.ndarray faces, long count) except +
+        bool addEdges(np.ndarray faces) except +
+        bool save(char* uri) except +
+        bool save(char* uri, char* drv) except +
 
 
 cdef class Driver:
@@ -138,6 +184,8 @@ cdef class Driver:
 
         def __get__(self):
             return MDAL_DR_saveMeshCapability(self.thisptr)
+            
+    
     def write_dataset_capability(self, location):
         return MDAL_DR_writeDatasetsCapability(self.thisptr, location)
 
@@ -156,10 +204,13 @@ cdef class Datasource:
     
     Init: Datasource(uri: str | PosixPath)
     """
-    cdef string uri  # hold the uri reference for the datasource
+    cdef str uri  # hold the uri reference for the datasource
 
     def __cinit__(self, uri):   
         self.uri = str(uri)
+        
+    def __eq__(self,other):
+        return self.uri == other.uri
 
     property meshes:
         """Returns a list of mesh uris"""
@@ -168,9 +219,10 @@ cdef class Datasource:
 
     def mesh_name_string(self):
         ret = MDAL_MeshNames(bytes(self.uri, 'utf-8'))
-        status = last_status()
-        if len(ret) == 0 or status != 0:
-            raise IndexError("No Meshes Found" + str(status))
+        if last_status():
+            raise ValueError(last_status().name)
+        if len(ret) == 0:
+            raise IndexError("No Meshes Found")
         return ret
 
     def load(self, arg: Union(int, str)) -> PyMesh:
@@ -190,8 +242,16 @@ cdef class PyMesh:
     cdef Mesh* thisptr
     cdef bool valid
 
-    def __cinit__(self, uri):
-        self.thisptr = new Mesh(bytes(uri, 'utf-8'))
+    def __cinit__(self, *args):
+        if args:
+            try:
+                self.thisptr = new Mesh(bytes(args[0], 'utf-8'))
+            except:
+                driver: Driver = args[0]
+                ptr: MDAL_DriverH = driver.thisptr
+                self.thisptr = new Mesh(ptr)
+        else:
+            self.thisptr = new Mesh()
         self.valid = True
 
     def __dealloc__(self):
@@ -205,6 +265,9 @@ cdef class PyMesh:
         del self.thisptr
         self.valid = False
         return False
+        
+    def __eq__(self, other):
+        return npy.array_equal(self.vertices,other.vertices) and npy.array_equal(self.faces, other.faces) and npy.array_equal(self.edges,other.edges)
 
     property vertex_count:
 
@@ -264,18 +327,34 @@ cdef class PyMesh:
         def __get__(self):
             if self.valid:
                 return <object>self.thisptr.getVertices()
+                
+        def __set__(self, np.ndarray vertices):
+            if self.valid:
+                if not self.thisptr.addVertices(vertices):
+                    raise ValueError(last_status().name)
     
     property faces:
     
         def __get__(self):
             if self.valid:
                 return <object>self.thisptr.getFaces()
+                
+        def __set__(self, np.ndarray faces):
+            if self.valid:
+                b = npy.array([list(faces[i]) for i in range(faces.shape[0])])
+                if not self.thisptr.addFaces(faces, npy.sum(b, axis=0)[0]):
+                    raise ValueError(last_status().name)
 
     property edges:
     
         def __get__(self):
             if self.valid:
                 return <object>self.thisptr.getEdges()
+            
+        def __set__(self, np.ndarray edges):
+            if self.valid:
+                if not self.thisptr.addEdges(edges):
+                    raise ValueError(last_status().name)
     
     def group(self, index):
         if self.valid:
@@ -336,7 +415,21 @@ cdef class PyMesh:
                 point_data,
                 cell_data
             )
-
+    
+    def save(self, uri: str, drv: Driver = None):
+        if drv:
+            if not self.thisptr.save(bytes(uri, 'utf-8'), bytes(drv.name, 'utf-8')):
+                raise ValueError(last_status().name)
+        else:
+            if ":" in uri:
+                spl = uri.split(":")
+                if not self.thisptr.save(spl[1],spl[0]):
+                    raise ValueError(last_status().name)
+            else:
+                if not self.thisptr.save(bytes(uri, 'utf-8')):
+                    raise ValueError(last_status().name)
+                    
+        
 
 cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
     cdef cppclass Data:
@@ -355,7 +448,7 @@ cdef class DatasetGroup:
     property location:
 
         def __get__(self):
-            return MDAL_G_dataLocation(self.thisptr)
+            return MDAL_DataLocation(MDAL_G_dataLocation(self.thisptr))
 
     property name:
 
