@@ -645,6 +645,8 @@ cdef class DatasetGroup:
 
     def data(self, index=0):
         return <object>self.thisdata.getDataAsDouble(index)
+        if last_status() != 0:
+            raise ValueError(last_status().name)
 
     def dataset_time(self, index):
         return MDAL_D_time(MDAL_G_dataset(self.thisptr, index))
