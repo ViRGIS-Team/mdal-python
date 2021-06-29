@@ -86,6 +86,14 @@ PyArrayObject* Data::getDataAsDouble(int index)
 {
     if (! m_data) 
         return nullptr;
+    
+    MDAL_ResetStatus();
+    if (_import_array() < 0)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return nullptr;
+    }
+    
     int dsCount = MDAL_G_datasetCount(m_data);
     npy_intp valueCount = (npy_intp)MDAL_D_valueCount( MDAL_G_dataset(m_data, index));
     int dims;
@@ -148,8 +156,11 @@ PyArrayObject* Data::getDataAsDouble(int index)
 
     PyArray_Descr *dtype = nullptr;
     if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
-        {}
-//         throw pdal_error("Unable to build numpy dtype");
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Unable to build numpy dtype");
+        return nullptr;
+    }
+
     Py_XDECREF(dict);
 
     // This is a dsCount x valueCount array.
@@ -187,6 +198,53 @@ PyArrayObject* Data::getDataAsDouble(int index)
     delete [] buffer;
     
     return dataset;
+}
+
+MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)
+{
+    MDAL_ResetStatus();
+    if (_import_array() < 0)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return MDAL_LastStatus();
+    }
+    
+    Py_XINCREF(data);
+    
+    m_dataset = data;
+
+    PyArray_Descr *dtype = PyArray_DTYPE(m_dataset);
+    npy_intp ndims = PyArray_NDIM(m_dataset);
+    npy_intp *shape = PyArray_SHAPE(m_dataset);
+    size_t size = shape[0];
+    int numFields = (dtype->fields == Py_None) ?
+        0 :
+        static_cast<int>(PyDict_Size(dtype->fields));
+
+    PyObject *names_dict = dtype->fields;
+    PyObject *names = PyDict_Keys(names_dict);
+    PyObject *values = PyDict_Values(names_dict);
+    if (!names || !values) 
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Bad field specification in numpy array.");
+    }
+    
+    double* d_array = new double[size * numFields];
+    size_t idx = 0;
+    
+    for (int i = 0; i < size; i++) 
+    {
+        char* p = (char *)PyArray_GETPTR1(m_dataset, i);
+        
+        for (int j = 0; j < numFields; j++)
+        {
+            std::memcpy(&d_array[idx], p + (j) * 8, 8);
+            idx++;
+        }
+    }
+    
+    MDAL_G_addDataset(m_data, time, d_array, nullptr);
+    return MDAL_LastStatus();
 }
 
 } // namespace python

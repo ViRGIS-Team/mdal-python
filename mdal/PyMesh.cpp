@@ -111,6 +111,13 @@ bool Mesh::save(const char* uri)
 
 bool Mesh::save(const char* uri, const char* drv)
 {
+    MDAL_ResetStatus();
+    MDAL_SetStatus(MDAL_LogLevel::Debug, MDAL_Status::None, uri);
+    //if (! m_vertices) 
+    //{
+        //MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Mesh must have vertices");
+        //return false;
+    //}
     MDAL_SaveMesh(m_mdalMesh, uri, drv);
     if (MDAL_LastStatus() != MDAL_Status::None)
     {
@@ -308,11 +315,12 @@ PyArrayObject *Mesh::getEdges()
 }
 
 bool Mesh::addVertices(PyArrayObject* vertices){
+    MDAL_ResetStatus();
     if (_import_array() < 0)
     {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
         return false;
     }
-    //throw pdal_error("Could not import numpy.core.multiarray.");
     
     Py_XINCREF(vertices);
     
@@ -406,8 +414,12 @@ bool Mesh::addVertices(PyArrayObject* vertices){
 }
     
 bool Mesh::addFaces(PyArrayObject* faces, long int count){
-    if (_import_array() < 0) {}
-            //throw pdal_error("Could not import numpy.core.multiarray.");
+    MDAL_ResetStatus();
+    if (_import_array() < 0)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return false;
+    }
     
     Py_XINCREF(faces);
     
@@ -505,6 +517,16 @@ bool Mesh::addEdges(PyArrayObject* edges){
     return true;
 }
 
+
+MDAL_DatasetGroupH Mesh::addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* file)
+{
+    return addGroup(name, loc, hasScalar, file, MDAL_driverFromName(MDAL_M_driverName(m_mdalMesh)));
+}
+MDAL_DatasetGroupH Mesh::addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* file, MDAL_DriverH drv)
+{
+    return MDAL_M_addDatasetGroup(m_mdalMesh, name, loc, hasScalar, drv, file);
+}
+
 int Mesh::edgeCount() 
 {
     if (m_mdalMesh)
@@ -539,11 +561,22 @@ int Mesh::maxFaceVertex(){
     return 0;
 }
 
+
 const char* Mesh::getProjection() 
 {
     if (m_mdalMesh)
         return MDAL_M_projection(m_mdalMesh);
     return nullptr;
+}
+
+MDAL_Status Mesh::setProjection(const char* proj)
+{
+    if (m_mdalMesh)
+    {
+        MDAL_ResetStatus();
+        MDAL_M_setProjection(m_mdalMesh, proj);
+        return MDAL_LastStatus();
+    }
 }
 
 void Mesh::getExtent(double* minX, double* maxX, double* minY, double* maxY)

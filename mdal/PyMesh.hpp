@@ -71,14 +71,17 @@ public:
     bool addVertices(PyArrayObject* vertices);
     bool addFaces(PyArrayObject* faces, long int count);
     bool addEdges(PyArrayObject* edges);
-    bool addGroup(MDAL_DataLocation loc)
+    MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* file);
+    MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation, bool hasScalar, const char* uri, MDAL_DriverH drv);
 
     int vertexCount();
     int edgeCount();
     int faceCount();
     int groupCount();
     int maxFaceVertex();
+    
     const char* getProjection();
+    MDAL_Status setProjection(const char* proj);
     void getExtent(double* minX, double* maxX, double* minY, double* maxY);
     const char* getDriverName();
     MDAL_DatasetGroupH getGroup(int index);

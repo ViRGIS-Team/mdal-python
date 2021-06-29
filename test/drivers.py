@@ -54,4 +54,4 @@ for driver in drivers():
                  ])
 
 print(tabulate(data, headers = [
-      "Driver", "Description", "Load Mesh", "Save Mesh", "Vertex Data", "Face Data", "Edge Date", "Volume Data"], tablefmt="rst"))
+      "Driver", "Description", "Load Mesh", "Save Mesh", "Vertex Data", "Face Data", "Edge Date", "Volume Data"], tablefmt="github"))

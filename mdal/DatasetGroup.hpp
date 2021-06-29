@@ -56,6 +56,7 @@ public:
 
     PyObject* getMetadata();
     PyArrayObject* getDataAsDouble(int index);
+    MDAL_Status setDataAsDouble(PyArrayObject* data, double time);
 
 private:
 

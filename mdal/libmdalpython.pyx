@@ -48,6 +48,7 @@ np.import_array()
 import meshio
 import typing
 from typing import Union
+from pathlib import Path
 
 from cpython cimport PyObject, Py_INCREF
 from cython.operator cimport dereference as deref, preincrement as inc
@@ -58,6 +59,7 @@ cdef extern from "mdal.h":
     ctypedef void* MDAL_DatasetH;
 
     cpdef enum MDAL_Status:
+        No_Err "None" = 0,
         Err_NotEnoughMemory = 1,
         Err_FileNotFound = 2,
         Err_UnknownFormat = 3,
@@ -84,9 +86,10 @@ cdef extern from "mdal.h":
 
     cdef string MDAL_Version()
     cdef MDAL_Status MDAL_LastStatus()
+    cdef void MDAL_ResetStatus()
     cdef int MDAL_driverCount()
     cdef MDAL_DriverH MDAL_driverFromIndex(int index)
-    cdef MDAL_DriverH MDAL_driverFromName( string name )
+    cdef MDAL_DriverH MDAL_driverFromName( const char* name )
     cdef bool MDAL_DR_meshLoadCapability( MDAL_DriverH driver )
     cdef bool MDAL_DR_writeDatasetsCapability( MDAL_DriverH driver, MDAL_DataLocation location )
     cdef string MDAL_DR_writeDatasetsSuffix( MDAL_DriverH driver )
@@ -104,7 +107,9 @@ cdef extern from "mdal.h":
     cdef bool MDAL_G_isTemporal(MDAL_DatasetGroupH group)
     cdef const char *MDAL_G_referenceTime(MDAL_DatasetGroupH group)
     cdef void MDAL_G_minimumMaximum(MDAL_DatasetGroupH group, double* min, double* max)
+    cdef void MDAL_G_closeEditMode(MDAL_DatasetGroupH group)
     cdef double MDAL_D_time(MDAL_DatasetH dataset)
+    cdef bool MDAL_G_isInEditMode(MDAL_DatasetGroupH group)
 
 
 def version_string():
@@ -113,11 +118,7 @@ def version_string():
 
 def last_status():
     """Returns last status message"""
-    ret = MDAL_LastStatus()
-    if ret != 0:
-        return MDAL_Status(ret)
-    else:
-        return None
+    return MDAL_Status(MDAL_LastStatus())
 
 def driver_count():
     """Returns count of registed MDAL drivers"""
@@ -143,6 +144,7 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
         int faceCount() except +
         int maxFaceVertex() except +
         string getProjection() except +
+        MDAL_Status setProjection(const char* proj) except +
         void getExtent(double* minX, double* maxX, double* minY, double* maxY) except +
         string getDriverName() except +
         int groupCount() except +
@@ -152,17 +154,25 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
         bool addEdges(np.ndarray faces) except +
         bool save(char* uri) except +
         bool save(char* uri, char* drv) except +
+        MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* file) except +
+        MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation, bool hasScalar, const char* uri, MDAL_DriverH drv) except +
 
 
 cdef class Driver:
     """Wrapper for the MDAL Driver.
 
-    Init : Driver(index: int)
+    Init : 
+
+    Driver(index: int)
+    Driver(name : str)
     """
     cdef MDAL_DriverH thisptr # hold the pointer to the driver instance we are wrapping
 
-    def __cinit__(self, int index):
-        self.thisptr = MDAL_driverFromIndex(index);
+    def __cinit__(self, *args):
+        if type(args[0]) == str:
+            self.thisptr = MDAL_driverFromName(args[0])
+        else:
+            self.thisptr = MDAL_driverFromIndex(args[0])
 
     property name:
         """Driver Short Name"""
@@ -204,10 +214,30 @@ cdef class Datasource:
     
     Init: Datasource(uri: str | PosixPath)
     """
-    cdef str uri  # hold the uri reference for the datasource
+    cdef str uri  # hold the uri for the datasource
+    cdef str driver_name  # hold the driver name for the file
 
-    def __cinit__(self, uri):   
+    def __cinit__(self, uri: Path, driver_name : str = None):   
         self.uri = str(uri)
+        if type(uri) != Path:
+            path = Path(uri)
+        if driver_name:
+            self.driver_name = driver_name
+            return
+        if path.is_file():
+            try:
+                meshes = self.meshes
+                if len(meshes) > 0:
+                    self.driver_name = meshes[0].split(":")[0]
+                    return
+            except Exception:
+                pass
+        ex = path.suffix
+        for driver in drivers():
+            if ex in driver.filters:
+                self.driver_name = driver.name
+                return
+        raise ValueError("Cannot Create Mesh")
         
     def __eq__(self,other):
         return self.uri == other.uri
@@ -215,14 +245,13 @@ cdef class Datasource:
     property meshes:
         """Returns a list of mesh uris"""
         def __get__(self):
-         return self.mesh_name_string().split(";;")
+            try:
+                return self.mesh_name_string().split(";;")
+            except:
+                return []
 
     def mesh_name_string(self):
         ret = MDAL_MeshNames(bytes(self.uri, 'utf-8'))
-        if last_status():
-            raise ValueError(last_status().name)
-        if len(ret) == 0:
-            raise IndexError("No Meshes Found")
         return ret
 
     def load(self, arg: Union(int, str)) -> PyMesh:
@@ -237,19 +266,54 @@ cdef class Datasource:
             arg = self.meshes[arg]
         return PyMesh(arg)
     
-
+    def add_mesh(self, name: str = None):
+        """Adds a mesh to the datasource. The mesh must be persisted by mesh.save()
+        
+        Usage:
+        
+        ds.add_mesh("test") -> PyMesh
+        """
+        uri = f'{self.driver_name}:"{self.uri}"'
+        if name:
+            uri += f':{name}'
+        print(uri)
+        mesh = PyMesh(self.driver_name)
+        mesh.uri = uri
+        return mesh
+    
 cdef class PyMesh:
+    """Class that wraps an MDAL Mesh instance.
+    
+    
+    
+    """
     cdef Mesh* thisptr
     cdef bool valid
+    cdef str file
+    cdef str name
 
     def __cinit__(self, *args):
+        MDAL_ResetStatus()
         if args:
             try:
-                self.thisptr = new Mesh(bytes(args[0], 'utf-8'))
+                if type(args[0]) != str:
+                    print(f"Driver : {args[0].name}")
+                    driver: Driver = args[0]
+                    ptr: MDAL_DriverH = driver.thisptr
+                    self.thisptr = new Mesh(ptr)
+                elif args[0] in [driver.name for driver in drivers()]:
+                    print(f"Drover name : {args[0]}")
+                    driver: Driver = Driver(args[0])
+                    ptr: MDAL_DriverH = driver.thisptr
+                    self.thisptr = new Mesh(ptr)
+                else:
+                    print(f"URI : {args[0]}")
+                    self.uri = args[0]
+                    self.thisptr = new Mesh(bytes(args[0], 'utf-8'))
             except:
-                driver: Driver = args[0]
-                ptr: MDAL_DriverH = driver.thisptr
-                self.thisptr = new Mesh(ptr)
+                raise ValueError("Mesh Creation Error")
+            if last_status() != MDAL_Status.No_Err:
+                raise ValueError(last_status().name)
         else:
             self.thisptr = new Mesh()
         self.valid = True
@@ -268,6 +332,31 @@ cdef class PyMesh:
         
     def __eq__(self, other):
         return npy.array_equal(self.vertices,other.vertices) and npy.array_equal(self.faces, other.faces) and npy.array_equal(self.edges,other.edges)
+        
+    def info(self):
+        print(f"Driver : {self.driver_name}")
+        print(f"File : {self.file}")
+        print(f"Mesh Name : {self.name}")
+        print(f"Is valid ? : {self.valid}")
+        print(f"Groupd : {[item.name for item in self.groups]}")
+    
+    property uri:
+    
+        def __get__(self):
+            uri = f'{self.driver_name}:"{self.file}"'
+            if self.name:
+                uri += f":{self.name}"
+            return uri
+            
+        def __set__(self, uri):
+            if ":" in uri:
+                spl = uri.split(":")
+                print(spl)
+                self.file = spl[1].strip('"')
+                try:
+                    self.name = spl[2]
+                except Exception:
+                    pass
 
     property vertex_count:
 
@@ -297,7 +386,14 @@ cdef class PyMesh:
 
         def __get__(self):
             if self.valid:
-                return self.thisptr.getProjection();
+                return self.thisptr.getProjection()
+
+        def __set__(self, proj:str):
+            if self.valid:
+                status = self.thisptr.setProjection(proj)
+                if status != 0:
+                    raise ValueError(MDAL_Status(status).name)
+                return
 
     property extent:
 
@@ -404,11 +500,11 @@ cdef class PyMesh:
             cell_data = {}
             for group in self.groups:
                 if group.location == 1 and group.has_scalar:
-                    point_data.update({group.name: group.data_as_double(0)['U']})
+                    point_data.update({group.name: group.data(0)['U']})
                 elif group.location == 2 and group.has_scalar:
-                    cell_data.update({group.name: group.data_as_double(0)['U']})
+                    cell_data.update({group.name: group.data(0)['U']})
                 elif group.location == 4 and group.has_scalar:
-                    cell_data.update({group.name: group.aata_as_double(0)['U']})
+                    cell_data.update({group.name: group.aata(0)['U']})
             return meshio.Mesh(
                 npy.stack((vertices['X'], vertices['Y'], vertices['Z']), 1),
                 cells,
@@ -416,20 +512,58 @@ cdef class PyMesh:
                 cell_data
             )
     
-    def save(self, uri: str, drv: Driver = None):
+    def save(self, uri: str = None, drv: Driver = None):
         if drv:
             if not self.thisptr.save(bytes(uri, 'utf-8'), bytes(drv.name, 'utf-8')):
                 raise ValueError(last_status().name)
         else:
+            if uri:
+                self.uri = uri
+            else:
+                uri = self.uri
             if ":" in uri:
                 spl = uri.split(":")
-                if not self.thisptr.save(spl[1],spl[0]):
+                driver: str = spl[0]
+                file: str = spl[1].strip('"')
+                if not self.thisptr.save(bytes(file, 'utf-8'),bytes(driver, 'utf-8')):
                     raise ValueError(last_status().name)
             else:
                 if not self.thisptr.save(bytes(uri, 'utf-8')):
                     raise ValueError(last_status().name)
                     
-        
+        self.valid = True
+
+    def add_group(self,  name: str, **kwargs):
+        if "location" in kwargs:
+            location: MDAL_DataLocation = kwargs.get("location")
+        else:
+            location = MDAL_DataLocation.DataOnVertices
+        if "uri" in kwargs and ":" in kwargs.get("uri"):
+            spl = kwargs.get("uri").split(":")
+            driver: str = spl[0]
+            file: str = spl[1].strip('"')
+        elif "file" in kwargs:
+            file: str = kwargs.get("file")
+            if "driver" in kwargs:
+                driver: str = kwargs.get("driver")
+            else:
+                driver: str = self.driver_name
+        elif self.valid:
+            spl = self.uri.split(":")
+            driver: str = spl[0]
+            file: str = spl[1].strip('"')
+        else:
+            raise ValueError("No valid place to save data")
+        if "vector" in kwargs:
+            scalar: bool = not kwargs.get("vector")
+        else:
+            scalar: bool = True
+        ret = DatasetGroup()
+        ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.addGroup(name, location, scalar, file, MDAL_driverFromName(bytes(driver, 'utf-8')))
+        ret.thisdata = new Data(ret.thisptr)
+        if last_status() != MDAL_Status.No_Err:
+            raise ValueError(f"Group creation error : {last_status().name}")
+        return ret
 
 cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
     cdef cppclass Data:
@@ -437,6 +571,7 @@ cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
         Data(MDAL_DatasetGroupH data) except +
         dict getMetadata() except +
         void* getDataAsDouble(int index) except +
+        MDAL_Status setDataAsDouble(np.ndarray data, double time) except +
 
 cdef class DatasetGroup:
     cdef MDAL_DatasetGroupH thisptr
@@ -492,8 +627,23 @@ cdef class DatasetGroup:
 
         def __get__(self):
             return self.thisdata.getMetadata()
+            
+    property edit_mode:
+    
+        def __get__(self):
+            return MDAL_G_isInEditMode(self.thisptr)
+    
+    def save(self):
+        MDAL_G_closeEditMode(self.thisptr)
+        if last_status() != 0:
+            raise ValueError(last_status().name)
+        
+    def add_data(self, data: npy.ndarray, time:float = 0):
+        self.thisdata.setDataAsDouble( data, time)
+        if last_status() != 0:
+            raise ValueError(last_status().name)
 
-    def data_as_double(self, index=0):
+    def data(self, index=0):
         return <object>self.thisdata.getDataAsDouble(index)
 
     def dataset_time(self, index):

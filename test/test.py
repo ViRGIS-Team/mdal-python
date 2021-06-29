@@ -38,7 +38,7 @@ from mdal import Datasource, Info, last_status, PyMesh, drivers
 
 print(f"MDAL Version:  {Info.version}")
 print(f"MDAL Driver Count :{Info.driver_count}")
-print(last_status())
+print(last_status().name)
 
 for driver in Info.drivers:
     print(driver)
@@ -80,7 +80,7 @@ with ds.load(0) as mesh:
 
     print("")
     for i in range(0, group.dataset_count):
-        data = group.data_as_double(i)
+        data = group.data(i)
         time = group.dataset_time(i)
         print(f"Dataset Shape for time {time} : {data.shape}")
 
