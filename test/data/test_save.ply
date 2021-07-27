@@ -1,0 +1,16 @@
+ply
+format ascii 1.0
+element vertex 5
+property double X
+property double Y
+property double Z
+element face 2
+property list uchar uint vertex_indices
+end_header
+0 0 0 
+0 10 0 
+10 10 0 
+10 0 0 
+10 20 10 
+4 0 1 2 3 
+3 2 4 3 

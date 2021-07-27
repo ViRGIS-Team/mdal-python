@@ -38,12 +38,19 @@
 #include <string>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 
 
 namespace mdal
 {
 namespace python
 {
+    
+PyObject* defaultArray()
+{
+    const npy_intp dims = 1;
+    return PyArray_SimpleNew(1, &dims, 1);
+}
 
 // Create new empty dataset
 //
@@ -71,30 +78,51 @@ Data::Data(MDAL_DatasetGroupH data) : m_data(nullptr), m_dataset(nullptr)
 PyObject* Data::getMetadata() 
 {
     if (! m_data) 
-        return nullptr;
+        return defaultArray();
     PyObject* dict = PyDict_New();
     int count = MDAL_G_metadataCount(m_data);
 
     for (int i =0; i < count; i++)
     {
-        PyDict_SetItemString(dict, MDAL_G_metadataKey(m_data, i), PyBytes_FromString(MDAL_G_metadataValue(m_data,i)));
+        PyObject *key_py = PyBytes_FromString(MDAL_G_metadataKey(m_data, i));
+        PyObject *value_py = PyBytes_FromString(MDAL_G_metadataValue(m_data,i));
+        PyDict_SetItem(dict, key_py, value_py );
     }
     return dict;
+}
+
+MDAL_Status Data::setMetadata(PyObject* dict, const char* encoding )
+{
+    MDAL_ResetStatus();
+    if (! m_data)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_InvalidData, "Invalid Data Group (null)");
+        return MDAL_LastStatus();
+    }
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+    PyObject* str;
+    
+    while (PyDict_Next(dict, &pos, &key, &value)) {
+        const char *keyc = PyBytes_AS_STRING(PyUnicode_AsEncodedString(key, encoding, "~E~"));
+        const char *valuec = PyBytes_AS_STRING(PyUnicode_AsEncodedString(value, encoding, "~E~"));
+        MDAL_G_setMetadata( m_data, keyc, valuec );
+    }
+    return MDAL_LastStatus();
 }
 
 PyArrayObject* Data::getDataAsDouble(int index) 
 {
     if (! m_data) 
-        return nullptr;
+        return (PyArrayObject*)defaultArray();
     
     MDAL_ResetStatus();
     if (_import_array() < 0)
     {
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
-        return nullptr;
+        return (PyArrayObject*)defaultArray();
     }
     
-    int dsCount = MDAL_G_datasetCount(m_data);
     npy_intp valueCount = (npy_intp)MDAL_D_valueCount( MDAL_G_dataset(m_data, index));
     int dims;
     MDAL_DataType type;
@@ -116,7 +144,7 @@ PyArrayObject* Data::getDataAsDouble(int index)
                 type = MDAL_DataType::SCALAR_VOLUMES_DOUBLE;
                 break;
             case MDAL_DataLocation::DataInvalidLocation:
-                return nullptr;
+                return (PyArrayObject*)defaultArray();
         }
     } else 
     {
@@ -136,7 +164,7 @@ PyArrayObject* Data::getDataAsDouble(int index)
                 type = MDAL_DataType::VECTOR_2D_VOLUMES_DOUBLE;
                 break;
             case MDAL_DataLocation::DataInvalidLocation:
-                return nullptr;
+                return (PyArrayObject*)defaultArray();
         }
     }
     PyObject* dict = PyDict_New();
@@ -158,16 +186,16 @@ PyArrayObject* Data::getDataAsDouble(int index)
     if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
     {
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Unable to build numpy dtype");
-        return nullptr;
+        return (PyArrayObject*)defaultArray();
     }
 
     Py_XDECREF(dict);
 
-    // This is a dsCount x valueCount array.
+    // This is a valueCount array.
     PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
             1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
 
-    double* buffer = new double[dims * valueCount];
+    double* buffer = new double[dims * 1024];
     size_t count = 0;
     int bufs = std::ceil(valueCount/1024);
     if (bufs == 0) bufs = 1;
@@ -179,7 +207,11 @@ PyArrayObject* Data::getDataAsDouble(int index)
         int remain = valueCount - j*1024;
         if (remain < 1024) next = remain;
         count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , type, buffer);
-        if (count != next) return nullptr;
+        if (count != next) 
+        {
+            delete [] buffer;
+            return (PyArrayObject *)defaultArray();
+        }
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
@@ -197,6 +229,215 @@ PyArrayObject* Data::getDataAsDouble(int index)
     }
     delete [] buffer;
     
+    return dataset;
+}
+
+PyArrayObject* Data::getDataAsVolumeIndex(int index)
+{
+    if (! m_data) 
+        return (PyArrayObject*)defaultArray();
+    
+    MDAL_ResetStatus();
+    if (_import_array() < 0)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return (PyArrayObject*)defaultArray();
+    }
+    
+    npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data));
+    
+    PyObject* dict = PyDict_New();
+    PyObject* formats = PyList_New(1);
+    PyObject* titles = PyList_New(1);
+
+    PyList_SetItem(titles, 0, PyUnicode_FromString("value"));
+    PyList_SetItem(formats, 0, PyUnicode_FromString("u4"));
+
+    PyDict_SetItemString(dict, "names", titles);
+    PyDict_SetItemString(dict, "formats", formats);
+
+    PyArray_Descr *dtype = nullptr;
+    if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Unable to build numpy dtype");
+        return (PyArrayObject*)defaultArray();
+    }
+
+    Py_XDECREF(dict);
+
+    // This is a dsCount x valueCount array.
+    PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+            1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
+
+    int* buffer = new int[1024];
+    size_t count = 0;
+    int bufs = std::ceil(valueCount/1024);
+    if (bufs == 0) bufs = 1;
+    int indexStart = 0;
+    int next = 1024;
+
+    for (int j = 0; j < bufs; j++)
+    {
+        int remain = valueCount - j*1024;
+        if (remain < 1024) next = remain;
+        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::FACE_INDEX_TO_VOLUME_INDEX_INTEGER, buffer);
+        if (count != next) 
+        {
+            delete [] buffer;
+            return (PyArrayObject *)defaultArray();
+        }
+        int idx = 0;
+        for (int i = 0; i < count; i++) 
+        {
+            char* p = (char *)PyArray_GETPTR1(dataset, (1024 * j) + i);
+            uint32_t val = (uint32_t)buffer[idx];
+            idx++;
+            std::memcpy(p, &val, 4);
+        }
+        indexStart += count;
+    }
+    delete [] buffer;
+    
+    return dataset;
+}
+
+PyArrayObject* Data::getDataAsLevelCount(int index)
+{
+        if (! m_data) 
+        return (PyArrayObject*)defaultArray();
+    
+    MDAL_ResetStatus();
+    if (_import_array() < 0)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return (PyArrayObject*)defaultArray();
+    }
+    
+    npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data));
+    
+    PyObject* dict = PyDict_New();
+    PyObject* formats = PyList_New(1);
+    PyObject* titles = PyList_New(1);
+
+    PyList_SetItem(titles, 0, PyUnicode_FromString("value"));
+    PyList_SetItem(formats, 0, PyUnicode_FromString("u4"));
+
+    PyDict_SetItemString(dict, "names", titles);
+    PyDict_SetItemString(dict, "formats", formats);
+
+    PyArray_Descr *dtype = nullptr;
+    if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Unable to build numpy dtype");
+        return (PyArrayObject*)defaultArray();
+    }
+
+    Py_XDECREF(dict);
+
+    // This is a dsCount x valueCount array.
+    PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+            1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
+
+    int* buffer = new int[1024];
+    size_t count = 0;
+    int bufs = std::ceil(valueCount/1024);
+    if (bufs == 0) bufs = 1;
+    int indexStart = 0;
+    int next = 1024;
+
+    for (int j = 0; j < bufs; j++)
+    {
+        int remain = valueCount - j*1024;
+        if (remain < 1024) next = remain;
+        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_COUNT_INTEGER, buffer);
+
+        if (count != next) 
+        {
+            delete [] buffer;
+            return (PyArrayObject *)defaultArray();
+        }
+        int idx = 0;
+        for (int i = 0; i < count; i++) 
+        {
+            char* p = (char *)PyArray_GETPTR1(dataset, (1024 * j) + i);
+            uint32_t val = (uint32_t)buffer[idx];
+            idx++;
+            std::memcpy(p, &val, 4);
+        }
+        indexStart += count;
+    }
+    delete [] buffer;
+    
+    return dataset;
+}
+
+PyArrayObject* Data::getDataAsLevelValue(int index)
+{
+        if (! m_data) 
+        return (PyArrayObject*)defaultArray();
+    
+    MDAL_ResetStatus();
+    if (_import_array() < 0)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return (PyArrayObject*)defaultArray();
+    }
+    
+    npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data)) + (npy_intp)MDAL_D_valueCount( MDAL_G_dataset(m_data, index));
+    
+    PyObject* dict = PyDict_New();
+    PyObject* formats = PyList_New(1);
+    PyObject* titles = PyList_New(1);
+
+    PyList_SetItem(titles, 0, PyUnicode_FromString("value"));
+    PyList_SetItem(formats, 0, PyUnicode_FromString("f8"));
+
+    PyDict_SetItemString(dict, "names", titles);
+    PyDict_SetItemString(dict, "formats", formats);
+
+    PyArray_Descr *dtype = nullptr;
+    if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Unable to build numpy dtype");
+        return (PyArrayObject*)defaultArray();
+    }
+
+    Py_XDECREF(dict);
+
+    // This is a dsCount x valueCount array.
+    PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+            1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
+
+    double* buffer = new double[1024];
+    size_t count = 0;
+    int bufs = std::ceil(valueCount/1024);
+    if (bufs == 0) bufs = 1;
+    int indexStart = 0;
+    int next = 1024;
+
+    for (int j = 0; j < bufs; j++)
+    {
+        int remain = valueCount - j*1024;
+        if (remain < 1024) next = remain;
+  
+        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_DOUBLE, buffer);
+
+        if (count != next) 
+        {
+            delete [] buffer;
+            return (PyArrayObject *)defaultArray();
+        }
+        int idx = 0;
+        for (int i = 0; i < count; i++) 
+        {
+            char* p = (char *)PyArray_GETPTR1(dataset, (1024 * j) + i);
+            double val = buffer[idx];
+            idx++;
+            std::memcpy(p, &val, 8);
+        }
+        indexStart += count;
+    }
+    delete [] buffer;
     return dataset;
 }
 
@@ -244,6 +485,97 @@ MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)
     }
     
     MDAL_G_addDataset(m_data, time, d_array, nullptr);
+    return MDAL_LastStatus();
+}
+
+MDAL_Status Data::setDataAsVolume(PyArrayObject* data, PyArrayObject* verticalLevelCounts, PyArrayObject* verticalLevels, double time )
+{
+    MDAL_ResetStatus();
+    if (_import_array() < 0)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return MDAL_LastStatus();
+    }
+
+    PyArray_Descr *dtype = PyArray_DTYPE(verticalLevelCounts);
+    npy_intp ndims = PyArray_NDIM(verticalLevelCounts);
+    npy_intp *shape = PyArray_SHAPE(verticalLevelCounts);
+    size_t size = shape[0];
+
+    PyObject *names_dict = dtype->fields;
+    PyObject *names = PyDict_Keys(names_dict);
+    PyObject *values = PyDict_Values(names_dict);
+    if (!names || !values) 
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Bad field specification in numpy array.");
+    }
+    
+    int* vl_array = new int[size];
+    
+    for (int i = 0; i < size; i++) 
+    {
+        char* p = (char *)PyArray_GETPTR1(verticalLevelCounts, i);
+        
+        std::memcpy(&vl_array[i], p, 4);
+    }
+    
+    dtype = PyArray_DTYPE(verticalLevels);
+    ndims = PyArray_NDIM(verticalLevels);
+    shape = PyArray_SHAPE(verticalLevels);
+    size = shape[0];
+
+    names_dict = dtype->fields;
+    names = PyDict_Keys(names_dict);
+    values = PyDict_Values(names_dict);
+    if (!names || !values) 
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Bad field specification in numpy array.");
+    }
+    
+    double* v_array = new double[size];
+    
+    for (int i = 0; i < size; i++) 
+    {
+        char* p = (char *)PyArray_GETPTR1(verticalLevels, i);
+        
+        std::memcpy(&v_array[i], p, 8);
+    }
+    
+    Py_XINCREF(data);
+    
+    m_dataset = data;
+
+    dtype = PyArray_DTYPE(m_dataset);
+    ndims = PyArray_NDIM(m_dataset);
+    shape = PyArray_SHAPE(m_dataset);
+    size = shape[0];
+    int numFields = (dtype->fields == Py_None) ?
+        0 :
+        static_cast<int>(PyDict_Size(dtype->fields));
+
+    names_dict = dtype->fields;
+    names = PyDict_Keys(names_dict);
+    values = PyDict_Values(names_dict);
+    if (!names || !values) 
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_UnsupportedElement, "Bad field specification in numpy array.");
+    }
+    
+    double* d_array = new double[size * numFields];
+    size_t idx = 0;
+    
+    for (int i = 0; i < size; i++) 
+    {
+        char* p = (char *)PyArray_GETPTR1(m_dataset, i);
+        
+        for (int j = 0; j < numFields; j++)
+        {
+            std::memcpy(&d_array[idx], p + (j) * 8, 8);
+            idx++;
+        }
+    }
+    
+    MDAL_G_addDataset3D(m_data, time, d_array, vl_array, v_array);
     return MDAL_LastStatus();
 }
 

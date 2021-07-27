@@ -45,6 +45,12 @@ namespace mdal
 {
 namespace python
 {
+
+PyObject* defaultObject()
+{
+    const npy_intp dims = 1;
+    return PyArray_SimpleNew(1, &dims, 1);
+}
     
 std::string toString(PyObject *pname)
 {
@@ -571,12 +577,15 @@ const char* Mesh::getProjection()
 
 MDAL_Status Mesh::setProjection(const char* proj)
 {
+    MDAL_ResetStatus();
     if (m_mdalMesh)
     {
-        MDAL_ResetStatus();
         MDAL_M_setProjection(m_mdalMesh, proj);
-        return MDAL_LastStatus();
+    } else 
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_IncompatibleMesh, "Invalid Mesh (null)");
     }
+    return MDAL_LastStatus();
 }
 
 void Mesh::getExtent(double* minX, double* maxX, double* minY, double* maxY)
@@ -598,6 +607,41 @@ MDAL_DatasetGroupH Mesh::getGroup(int index)
     if (m_mdalMesh)
         return MDAL_M_datasetGroup(m_mdalMesh, index);
     return nullptr;
+}
+
+PyObject* Mesh::getMetadata() 
+{
+    if (! m_mdalMesh) 
+        return defaultObject();
+    PyObject* dict = PyDict_New();
+    int count = MDAL_M_metadataCount(m_mdalMesh);
+    for (int i =0; i < count; i++)
+    {
+        PyObject *key_py = PyBytes_FromString(MDAL_M_metadataKey(m_mdalMesh, i));
+        PyObject *value_py = PyBytes_FromString(MDAL_M_metadataValue(m_mdalMesh,i));
+        PyDict_SetItem(dict, key_py, value_py );
+    }
+    return dict;
+}
+
+MDAL_Status Mesh::setMetadata(PyObject* dict, const char* encoding )
+{
+    MDAL_ResetStatus();
+    if (! m_mdalMesh)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_IncompatibleMesh, "Invalid Mesh (null)");
+        return MDAL_LastStatus();
+    }
+    PyObject *key, *value;
+    Py_ssize_t pos = 0;
+    PyObject* str;
+    
+    while (PyDict_Next(dict, &pos, &key, &value)) {
+        const char *keyc = PyBytes_AS_STRING(PyUnicode_AsEncodedString(key, encoding, "~E~"));
+        const char *valuec = PyBytes_AS_STRING(PyUnicode_AsEncodedString(value, encoding, "~E~"));
+        MDAL_M_setMetadata( m_mdalMesh, keyc, valuec );
+    }
+    return MDAL_LastStatus();
 }
 
 } // namespace python

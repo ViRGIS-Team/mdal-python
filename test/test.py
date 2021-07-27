@@ -49,12 +49,17 @@ print(ds.meshes)
 
 with ds.load(0) as mesh:
     print(f"Driver : {mesh.driver_name}")
+    print(f"Format : {mesh.get_metadata('format')}")
     print(f"Vertex Count : {mesh.vertex_count}")
     print(f"Face Count : {mesh.face_count}")
     print(f"Largest Face: {mesh.largest_face}")
     print(f"Edge Count : {mesh.edge_count}")
     print(f"CRS : {mesh.projection}")
     print(f"Mesh extent : {mesh.extent}")
+    print(f"Metadata : {mesh.metadata}")
+    print(f"CRS Metadata : {mesh.get_metadata('crs')}")
+    mesh.add_metadata("test", "value")
+    print(f"Metadate set eqiuality : {mesh.get_metadata('test') == 'value'}")
 
     vertex = mesh.vertices
     print(f"Vertex Array Shape : {vertex.shape}")
@@ -77,6 +82,10 @@ with ds.load(0) as mesh:
     print(f"Maximum Vertical Level Count : {group.level_count}")
     print(f"Minimum / Maximum ; {group.minmax}")
     print(f"Metadata : {group.metadata}")
+    print(f"Name Metadata : {group.get_metadata('name')}")
+    group.add_metadata("test", "value")
+    print(
+        f"Metadate set eqiuality : {group.get_metadata('test') == 'value'}")
 
     print("")
     for i in range(0, group.dataset_count):
@@ -103,7 +112,21 @@ with ds.load(0) as mesh:
     test4 = ds2.load(0)
     print(f"Save equality : {test4 == test}")
 
+    del(test)
+    del(test4)
+
     meshio = mesh.meshio()
+    mesh.save("save_test.ply")
+
+ds2 = Datasource("data/ply/all_features.ply")
+
+with ds2.load(0) as mesh:
+    mesh.save("save_test_2.ply")
+
+    ds3 = Datasource("save_test_2.ply")
+
+    with ds3.load(0) as mesh2:
+        print(f"Save equality 2 : {mesh == mesh2}")
 
 print(meshio)
 print(mesh)

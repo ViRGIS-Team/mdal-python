@@ -85,6 +85,8 @@ public:
     void getExtent(double* minX, double* maxX, double* minY, double* maxY);
     const char* getDriverName();
     MDAL_DatasetGroupH getGroup(int index);
+    PyObject* getMetadata();
+    MDAL_Status setMetadata(PyObject* dict, const char* encoding );
 
 
 private:

@@ -156,6 +156,8 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
         bool save(char* uri, char* drv) except +
         MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* file) except +
         MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation, bool hasScalar, const char* uri, MDAL_DriverH drv) except +
+        dict getMetadata() except +
+        MDAL_Status setMetadata(dict md, const char* encoding) except +
 
 
 cdef class Driver:
@@ -254,7 +256,7 @@ cdef class Datasource:
         ret = MDAL_MeshNames(bytes(self.uri, 'utf-8'))
         return ret
 
-    def load(self, arg: Union(int, str)) -> PyMesh:
+    def load(self, arg: Union(int, str) = 0) -> PyMesh:
         """Returns an mdal.PyMesh object wrapping an instance of an MDAL mesh.
 
         Usage: 
@@ -276,7 +278,6 @@ cdef class Datasource:
         uri = f'{self.driver_name}:"{self.uri}"'
         if name:
             uri += f':{name}'
-        print(uri)
         mesh = PyMesh(self.driver_name)
         mesh.uri = uri
         return mesh
@@ -297,17 +298,14 @@ cdef class PyMesh:
         if args:
             try:
                 if type(args[0]) != str:
-                    print(f"Driver : {args[0].name}")
                     driver: Driver = args[0]
                     ptr: MDAL_DriverH = driver.thisptr
                     self.thisptr = new Mesh(ptr)
                 elif args[0] in [driver.name for driver in drivers()]:
-                    print(f"Drover name : {args[0]}")
                     driver: Driver = Driver(args[0])
                     ptr: MDAL_DriverH = driver.thisptr
                     self.thisptr = new Mesh(ptr)
                 else:
-                    print(f"URI : {args[0]}")
                     self.uri = args[0]
                     self.thisptr = new Mesh(bytes(args[0], 'utf-8'))
             except:
@@ -338,7 +336,9 @@ cdef class PyMesh:
         print(f"File : {self.file}")
         print(f"Mesh Name : {self.name}")
         print(f"Is valid ? : {self.valid}")
-        print(f"Groupd : {[item.name for item in self.groups]}")
+        print(f"Metadata : {self.metadata}")
+        print(f"CRS : {self.projection}")
+        print(f"Groups : {[item.name for item in self.groups]}")
     
     property uri:
     
@@ -351,7 +351,6 @@ cdef class PyMesh:
         def __set__(self, uri):
             if ":" in uri:
                 spl = uri.split(":")
-                print(spl)
                 self.file = spl[1].strip('"')
                 try:
                     self.name = spl[2]
@@ -472,6 +471,26 @@ cdef class PyMesh:
                 for i in range(0,self.group_count):
                     ret.append(self.group(i))
                 return ret
+                
+    property metadata:
+
+        def __get__(self):
+            return self.thisptr.getMetadata()
+        
+        def __set__(self, metadata):
+            if self.thisptr.setMetadata(metadata, "utf-8") != MDAL_Status.No_Err:
+                raise ValueError(last_status().name)
+                
+    def get_metadata(self, key: str, encoding: str = 'UTF-8'):
+        value = self.metadata.get(key.encode(encoding=encoding))
+        if value:
+            value = value.decode(encoding=encoding)
+        return value
+
+    def add_metadata(self, key: str, value: str, encoding: str = 'utf-8' ):
+        if self.valid:
+            if self.thisptr.setMetadata({key: value}, encoding) != MDAL_Status.No_Err:
+                raise ValueError(last_status().name)
         
     def meshio(self):
         if self.valid:
@@ -513,6 +532,7 @@ cdef class PyMesh:
             )
     
     def save(self, uri: str = None, drv: Driver = None):
+        MDAL_ResetStatus()
         if drv:
             if not self.thisptr.save(bytes(uri, 'utf-8'), bytes(drv.name, 'utf-8')):
                 raise ValueError(last_status().name)
@@ -534,6 +554,7 @@ cdef class PyMesh:
         self.valid = True
 
     def add_group(self,  name: str, **kwargs):
+        MDAL_ResetStatus()
         if "location" in kwargs:
             location: MDAL_DataLocation = kwargs.get("location")
         else:
@@ -571,7 +592,12 @@ cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
         Data(MDAL_DatasetGroupH data) except +
         dict getMetadata() except +
         void* getDataAsDouble(int index) except +
+        void* getDataAsVolumeIndex(int index) except +
+        void* getDataAsLevelCount(int index) except +
+        void* getDataAsLevelValue(int index) except +
         MDAL_Status setDataAsDouble(np.ndarray data, double time) except +
+        MDAL_Status setDataAsVolume(np.ndarray data, np.ndarray verticalLevelCounts, np.ndarray verticalLevels, double time ) except +
+        MDAL_Status setMetadata(dict md, const char* encoding ) except +
 
 cdef class DatasetGroup:
     cdef MDAL_DatasetGroupH thisptr
@@ -628,6 +654,20 @@ cdef class DatasetGroup:
         def __get__(self):
             return self.thisdata.getMetadata()
             
+        def __set__(self, metadata):
+            if self.thisdata.setMetadata(metadata, 'utf-8') != MDAL_Status.No_Err:
+                raise ValueError(last_status().name)
+                
+    def get_metadata(self, key: str, encoding: str = 'UTF-8'):
+        value = self.metadata.get(key.encode(encoding=encoding))
+        if value:
+            value = value.decode(encoding=encoding)
+        return value
+        
+    def add_metadata(self, key: str, value: str, encoding: str = 'utf-8' ):
+        if self.thisdata.setMetadata({key: value}, encoding) != MDAL_Status.No_Err:
+            raise ValueError(last_status().name)
+            
     property edit_mode:
     
         def __get__(self):
@@ -644,11 +684,25 @@ cdef class DatasetGroup:
             raise ValueError(last_status().name)
 
     def data(self, index=0):
-        return <object>self.thisdata.getDataAsDouble(index)
+        ret =  <object>self.thisdata.getDataAsDouble(index)
         if last_status() != 0:
             raise ValueError(last_status().name)
+        return ret
 
     def dataset_time(self, index):
         return MDAL_D_time(MDAL_G_dataset(self.thisptr, index))
+        
+    def volumetric(self, index: int):
+        if (self.location != MDAL_DataLocation.DataOnVolumes):
+            raise ValueError("Group has no data on volumes")
+        face_ind = <object>self.thisdata.getDataAsVolumeIndex(index)
+        level_counts = <object>self.thisdata.getDataAsLevelCount(index)
+        level_values = <object>self.thisdata.getDataAsLevelValue(index)
+        if last_status() != MDAL_Status.No_Err:
+            raise ValueError(last_status().name)
+        return (level_counts, level_values, face_ind)
 
-
+    def add_volumetric(self, data: npy.ndarray, level_counts: npy.ndarray, level_values: npy.ndarray, time:float = 0):
+        self.thisdata.setDataAsVolume( data, level_counts, level_values, time)
+        if last_status() != 0:
+            raise ValueError(last_status().name)

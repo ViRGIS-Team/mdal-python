@@ -55,8 +55,13 @@ public:
     ~Data();
 
     PyObject* getMetadata();
+    MDAL_Status setMetadata(PyObject* dict,  const char* encoding );
     PyArrayObject* getDataAsDouble(int index);
     MDAL_Status setDataAsDouble(PyArrayObject* data, double time);
+    PyArrayObject* getDataAsVolumeIndex(int index);
+    PyArrayObject* getDataAsLevelCount(int index);
+    PyArrayObject* getDataAsLevelValue(int index);
+    MDAL_Status setDataAsVolume(PyArrayObject* data, PyArrayObject* verticalLevelCounts, PyArrayObject* verticalLevels, double time );
 
 private:
 
