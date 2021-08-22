@@ -1,13 +1,9 @@
 ply
 format ascii 1.0
-comment test2
-comment test1
-comment crs : +proj=tmerc
-comment test file for MDAL
 element vertex 5
-property double x
-property double y
-property double z
+property double X
+property double Y
+property double Z
 property double red
 property double green
 property double blue

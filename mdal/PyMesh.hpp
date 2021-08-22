@@ -72,7 +72,7 @@ public:
     bool addFaces(PyArrayObject* faces, long int count);
     bool addEdges(PyArrayObject* edges);
     MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* file);
-    MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation, bool hasScalar, const char* uri, MDAL_DriverH drv);
+    MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* uri, MDAL_DriverH drv);
 
     int vertexCount();
     int edgeCount();

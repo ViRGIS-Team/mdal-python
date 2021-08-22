@@ -485,6 +485,7 @@ bool Mesh::addEdges(PyArrayObject* edges){
     PyArray_Descr *dtype = PyArray_DTYPE(m_edges);
     npy_intp ndims = PyArray_NDIM(m_edges);
     npy_intp *shape = PyArray_SHAPE(m_edges);
+    size_t size = shape[0];
     int numFields = (dtype->fields == Py_None) ?
         0 :
         static_cast<int>(PyDict_Size(dtype->fields));
@@ -500,14 +501,22 @@ bool Mesh::addEdges(PyArrayObject* edges){
         //        "must have three dimensions.");
         
     int ab;
+    int start = 0;
+    int end = 0;
         
     for (int i = 0; i < numFields; ++i)
     {
         std::string name = toString(PyList_GetItem(names, i));
         if (name == "START")
+        {
             ab |= 1;
+            start = i;
+        }
         else if (name == "END")
+        {
             ab |= 2;
+            end = i;
+        }
         PyObject *tup = PyList_GetItem(values, i);
 
         // Get offset.
@@ -520,6 +529,21 @@ bool Mesh::addEdges(PyArrayObject* edges){
             //throw pdal_error("Array without named X/Y/Z fields "
             //        "must have three dimensions.");
     }
+    int* start_array = new int[size];
+    int* end_array = new int[size];
+    size_t idx = 0;
+    
+    for (int i = 0; i < size; i++) 
+    {
+        char* p = (char *)PyArray_GETPTR1(m_edges, i);
+        
+        std::memcpy(&start_array[i], p + ( start * 4 ), 4);
+        std::memcpy(&end_array[i],p + (end * 4 ), 4);
+    }
+    MDAL_M_addEdges(m_mdalMesh, (int)size, start_array, end_array );
+    MDAL_Status status =  MDAL_LastStatus();
+    if (status != MDAL_Status::None) 
+        return false;
     return true;
 }
 

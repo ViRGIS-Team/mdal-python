@@ -38,3 +38,5 @@ dist/
 build/
 __pycache__
 mdal.egg-info/
+*.wpr
+*.wpu

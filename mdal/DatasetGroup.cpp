@@ -373,7 +373,7 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
 
 PyArrayObject* Data::getDataAsLevelValue(int index)
 {
-        if (! m_data) 
+    if (! m_data) 
         return (PyArrayObject*)defaultArray();
     
     MDAL_ResetStatus();
@@ -443,6 +443,11 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
 
 MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)
 {
+    if (! m_data)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_IncompatibleDatasetGroup, "NULL: No Group");
+        return MDAL_LastStatus();
+    }
     MDAL_ResetStatus();
     if (_import_array() < 0)
     {
@@ -451,12 +456,10 @@ MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)
     }
     
     Py_XINCREF(data);
-    
-    m_dataset = data;
 
-    PyArray_Descr *dtype = PyArray_DTYPE(m_dataset);
-    npy_intp ndims = PyArray_NDIM(m_dataset);
-    npy_intp *shape = PyArray_SHAPE(m_dataset);
+    PyArray_Descr *dtype = PyArray_DTYPE(data);
+    npy_intp ndims = PyArray_NDIM(data);
+    npy_intp *shape = PyArray_SHAPE(data);
     size_t size = shape[0];
     int numFields = (dtype->fields == Py_None) ?
         0 :
@@ -475,7 +478,7 @@ MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)
     
     for (int i = 0; i < size; i++) 
     {
-        char* p = (char *)PyArray_GETPTR1(m_dataset, i);
+        char* p = (char *)PyArray_GETPTR1(data, i);
         
         for (int j = 0; j < numFields; j++)
         {
@@ -485,11 +488,22 @@ MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)
     }
     
     MDAL_G_addDataset(m_data, time, d_array, nullptr);
+    
     return MDAL_LastStatus();
 }
 
 MDAL_Status Data::setDataAsVolume(PyArrayObject* data, PyArrayObject* verticalLevelCounts, PyArrayObject* verticalLevels, double time )
 {
+    if (! m_data)
+    {
+        MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_IncompatibleDatasetGroup, "NULL: No Group");
+        return MDAL_LastStatus();
+    }
+    if (! m_data)
+        {
+            MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_IncompatibleDatasetGroup, "NULL: No Group");
+            return MDAL_LastStatus();
+        }
     MDAL_ResetStatus();
     if (_import_array() < 0)
     {
@@ -542,12 +556,10 @@ MDAL_Status Data::setDataAsVolume(PyArrayObject* data, PyArrayObject* verticalLe
     }
     
     Py_XINCREF(data);
-    
-    m_dataset = data;
 
-    dtype = PyArray_DTYPE(m_dataset);
-    ndims = PyArray_NDIM(m_dataset);
-    shape = PyArray_SHAPE(m_dataset);
+    dtype = PyArray_DTYPE(data);
+    ndims = PyArray_NDIM(data);
+    shape = PyArray_SHAPE(data);
     size = shape[0];
     int numFields = (dtype->fields == Py_None) ?
         0 :
@@ -566,7 +578,7 @@ MDAL_Status Data::setDataAsVolume(PyArrayObject* data, PyArrayObject* verticalLe
     
     for (int i = 0; i < size; i++) 
     {
-        char* p = (char *)PyArray_GETPTR1(m_dataset, i);
+        char* p = (char *)PyArray_GETPTR1(data, i);
         
         for (int j = 0; j < numFields; j++)
         {

@@ -57,6 +57,7 @@ cdef extern from "mdal.h":
     ctypedef void* MDAL_DriverH;
     ctypedef void* MDAL_DatasetGroupH;
     ctypedef void* MDAL_DatasetH;
+    ctypedef void* MDAL_MeshH;
 
     cpdef enum MDAL_Status:
         No_Err "None" = 0,
@@ -110,7 +111,13 @@ cdef extern from "mdal.h":
     cdef void MDAL_G_closeEditMode(MDAL_DatasetGroupH group)
     cdef double MDAL_D_time(MDAL_DatasetH dataset)
     cdef bool MDAL_G_isInEditMode(MDAL_DatasetGroupH group)
-
+    cdef string MDAL_G_driverName( MDAL_DatasetGroupH group )
+    cdef void MDAL_G_setReferenceTime( MDAL_DatasetGroupH group, const char* referenceTimeISO8601 )
+    cdef string MDAL_G_uri( MDAL_DatasetGroupH group )
+    cdef MDAL_MeshH MDAL_G_mesh( MDAL_DatasetGroupH group )
+    cdef int MDAL_M_vertexCount( MDAL_MeshH mesh )
+    cdef int MDAL_M_faceCount( MDAL_MeshH mesh )    
+    cdef int MDAL_M_edgeCount( MDAL_MeshH mesh )
 
 def version_string():
     """Returns MDAL version"""
@@ -155,7 +162,7 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
         bool save(char* uri) except +
         bool save(char* uri, char* drv) except +
         MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* file) except +
-        MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation, bool hasScalar, const char* uri, MDAL_DriverH drv) except +
+        MDAL_DatasetGroupH addGroup(const char* name, MDAL_DataLocation loc, bool hasScalar, const char* uri, MDAL_DriverH drv) except +
         dict getMetadata() except +
         MDAL_Status setMetadata(dict md, const char* encoding) except +
 
@@ -553,38 +560,57 @@ cdef class PyMesh:
                     
         self.valid = True
 
-    def add_group(self,  name: str, **kwargs):
+    def add_group(self,  arg, **kwargs):
         MDAL_ResetStatus()
-        if "location" in kwargs:
-            location: MDAL_DataLocation = kwargs.get("location")
-        else:
-            location = MDAL_DataLocation.DataOnVertices
-        if "uri" in kwargs and ":" in kwargs.get("uri"):
-            spl = kwargs.get("uri").split(":")
-            driver: str = spl[0]
-            file: str = spl[1].strip('"')
-        elif "file" in kwargs:
-            file: str = kwargs.get("file")
-            if "driver" in kwargs:
-                driver: str = kwargs.get("driver")
-            else:
-                driver: str = self.driver_name
-        elif self.valid:
+        if type(arg) == DatasetGroup:
+            ret = DatasetGroup()
             spl = self.uri.split(":")
-            driver: str = spl[0]
             file: str = spl[1].strip('"')
+            ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.addGroup(arg.name, arg.location, arg.has_scalar, arg.uri)
+            ret.thisdata = new Data(ret.thisptr)
+            for i in range(0, arg.dataset_count ):
+                ret.add_data(arg.data(i), arg.dataset_time(i))
         else:
-            raise ValueError("No valid place to save data")
-        if "vector" in kwargs:
-            scalar: bool = not kwargs.get("vector")
-        else:
-            scalar: bool = True
-        ret = DatasetGroup()
-        ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.addGroup(name, location, scalar, file, MDAL_driverFromName(bytes(driver, 'utf-8')))
-        ret.thisdata = new Data(ret.thisptr)
-        if last_status() != MDAL_Status.No_Err:
-            raise ValueError(f"Group creation error : {last_status().name}")
+            if "location" in kwargs:
+                location: MDAL_DataLocation = kwargs.get("location")
+            else:
+                location = MDAL_DataLocation.DataOnVertices
+            if "uri" in kwargs and ":" in kwargs.get("uri"):
+                spl = kwargs.get("uri").split(":")
+                driver: str = spl[0]
+                file: str = spl[1].strip('"')
+            elif "file" in kwargs:
+                file: str = kwargs.get("file")
+                if "driver" in kwargs:
+                    driver: str = kwargs.get("driver")
+                else:
+                    driver: str = self.driver_name
+            elif self.valid:
+                spl = self.uri.split(":")
+                driver: str = spl[0]
+                file: str = spl[1].strip('"')
+            else:
+                raise ValueError("No valid place to save data")
+            if "vector" in kwargs:
+                scalar: bool = not kwargs.get("vector")
+            else:
+                scalar: bool = True
+            ret = DatasetGroup()
+            ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.addGroup(arg, location, scalar, file, MDAL_driverFromName(bytes(driver, 'utf-8')))
+            ret.thisdata = new Data(ret.thisptr)
+            if last_status() != MDAL_Status.No_Err:
+                raise ValueError(f"Group creation error : {last_status().name}")
         return ret
+        
+    def deep_copy(self, other: PyMesh):
+        self.vertices = other.vertices
+        self.faces = other.faces
+        self.edges = other.edges
+        self.projection = other.projection
+        
+    def data_copy(self, other: PyMesh):
+        for group in other.groups:
+            self.add_group(group)
 
 cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
     cdef cppclass Data:
@@ -620,6 +646,11 @@ cdef class DatasetGroup:
 
         def __get__(self):
             return MDAL_G_datasetCount(self.thisptr)
+            
+    property driver_name:
+    
+        def __get__(self):
+            return MDAL_G_driverName(self.thisptr)
 
     property has_scalar:
 
@@ -635,6 +666,13 @@ cdef class DatasetGroup:
 
         def __get__(self):
             return MDAL_G_referenceTime(self.thisptr)
+            
+        def __set__(self, referenceTimeISO8601: str):
+            MDAL_ResetStatus()
+            MDAL_G_setReferenceTime( self.thisptr, referenceTimeISO8601 )
+            if last_status() != 0:
+                raise ValueError(last_status().name)
+            return
 
     property level_count:
 
@@ -657,6 +695,21 @@ cdef class DatasetGroup:
         def __set__(self, metadata):
             if self.thisdata.setMetadata(metadata, 'utf-8') != MDAL_Status.No_Err:
                 raise ValueError(last_status().name)
+            
+    property vertex_count:
+
+        def __get__(self):
+            return MDAL_M_vertexCount( <MDAL_MeshH>MDAL_G_mesh( self.thisptr ) )
+
+    property face_count:
+
+        def __get__(self):
+            return MDAL_M_faceCount( <MDAL_MeshH>MDAL_G_mesh( self.thisptr ) )
+
+    property edge_count:
+
+        def __get__(self):
+           return MDAL_M_edgeCount( <MDAL_MeshH>MDAL_G_mesh( self.thisptr ) )
                 
     def get_metadata(self, key: str, encoding: str = 'UTF-8'):
         value = self.metadata.get(key.encode(encoding=encoding))
@@ -672,6 +725,11 @@ cdef class DatasetGroup:
     
         def __get__(self):
             return MDAL_G_isInEditMode(self.thisptr)
+            
+    property uri:
+    
+        def __get__(self):
+            return MDAL_G_uri( self.thisptr )
     
     def save(self):
         MDAL_G_closeEditMode(self.thisptr)
@@ -679,6 +737,16 @@ cdef class DatasetGroup:
             raise ValueError(last_status().name)
         
     def add_data(self, data: npy.ndarray, time:float = 0):
+        if type(time) == str:
+            if time == "":
+                time = 0
+            else:
+                time = float( time )
+        if ( self.location == MDAL_DataLocation.DataInvalidLocation or
+            (self.location == MDAL_DataLocation.DataOnVertices and len(data) != self.vertex_count ) or
+            (self.location == MDAL_DataLocation.DataOnFaces and len(data) != self.face_count ) or
+            (self.location == MDAL_DataLocation.DataOnEdges and len(data) != self.edge_count )):
+                raise ValueError("Invalid Dataset")
         self.thisdata.setDataAsDouble( data, time)
         if last_status() != 0:
             raise ValueError(last_status().name)

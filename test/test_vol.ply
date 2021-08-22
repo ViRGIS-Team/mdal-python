@@ -1,10 +1,9 @@
 ply
 format ascii 1.0
-comment crs : 
 element vertex 369
-property double x
-property double y
-property double z
+property double X
+property double Y
+property double Z
 element face 320
 property list uchar uint vertex_indices
 property list uchar double test
