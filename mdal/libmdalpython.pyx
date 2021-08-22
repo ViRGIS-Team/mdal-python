@@ -502,35 +502,56 @@ cdef class PyMesh:
     def meshio(self):
         if self.valid:
             vertices = self.vertices
+            lines = []
+            faces = []
+            tris = []
+            quads = []
             if self.face_count == 0:
                 if self.edge_count == 0:
                     return None
-                edges = self.edges
+                lines = self.edges
                 cells =[
-                    ("line", npy.stack((edges['START'],edges['END']),1))
+                    ("line", npy.stack((lines['START'],lines['END']),1))
                 ]
             else:
                 faces = self.faces
-                lines = faces[faces['Vertices'] == 2]
+                lines = self.edges
                 tris = faces[faces['Vertices'] == 3]
                 quads = faces[faces['Vertices'] == 4]
                 cells = []
                 if len(lines) > 0:
-                    cells.append(("line",npy.stack((faces['V0'], faces['V1']), 1)))
+                    cells.append(("line",npy.stack((lines['START'], lines['END']), 1)))
                 if len(tris) > 0:
-                    cells.append(("triangle",npy.stack((faces['V0'], faces['V1'], faces['V2']), 1)))
+                    cells.append(("triangle",npy.stack((tris['V0'], tris['V1'], tris['V2']), 1)))
                 if len(quads) > 0:
-                    cells.append(("quad",npy.stack((faces['V0'], faces['V1'], faces['V2'], faces['V3']), 1)))
+                    cells.append(("quad",npy.stack((quads['V0'], quads['V1'], quads['V2'], quads['V3']), 1)))
                     
             point_data = {}
             cell_data = {}
             for group in self.groups:
+                if group.name == "Bed Elevation":
+                    continue
                 if group.location == 1 and group.has_scalar:
                     point_data.update({group.name: group.data(0)['U']})
                 elif group.location == 2 and group.has_scalar:
-                    cell_data.update({group.name: group.data(0)['U']})
+                    data_out = []
+                    data_in = group.data(0)['U']
+                    if len(lines) > 0:
+                        data_out.append([float("NaN") for item in lines])
+                    if len(tris) > 0:
+                        data_out.append(data_in[faces['Vertices'] == 3])
+                    if len(quads) > 0:
+                        data_out.append(data_in[faces['Vertices'] == 4])
+                    cell_data.update({group.name: data_out})
                 elif group.location == 4 and group.has_scalar:
-                    cell_data.update({group.name: group.aata(0)['U']})
+                    data_out = []
+                    if len(lines) > 0:
+                        data_out.append(group.data(0)['U'])
+                    if len(tris) > 0:
+                        data_out.append([ float("NaN") for item in faces[faces['Vertices'] == 3]] )
+                    if len(quads) > 0:
+                        data_out.append([ float("NaN") for item in faces[faces['Vertices'] == 4]] )
+                    cell_data.update({group.name: data_out})
             return meshio.Mesh(
                 npy.stack((vertices['X'], vertices['Y'], vertices['Z']), 1),
                 cells,

@@ -1,0 +1,26 @@
+ply
+format ascii 1.0
+comment Created by meshio v4.4.5, 2021-08-22T20:59:07.550838
+element vertex 5
+property double x
+property double y
+property double z
+property double red
+property double green
+property double blue
+element face 8
+property list uint8 uint32 vertex_indices
+end_header
+0.0 0.0 0.0 255.0 255.0 255.0
+0.0 10.0 0.0 255.0 255.0 0.0
+10.0 10.0 0.0 255.0 0.0 0.0
+10.0 0.0 0.0 0.0 0.0 0.0
+10.0 20.0 10.0 0.0 255.0 255.0
+2 0 1
+2 1 2
+2 2 3
+2 3 0
+2 2 4
+2 4 3
+3 2 4 3
+4 0 1 2 3
