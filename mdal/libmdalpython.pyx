@@ -45,7 +45,6 @@ from cpython.version cimport PY_MAJOR_VERSION
 cimport numpy as np
 import numpy as npy
 np.import_array()
-import meshio
 import typing
 from typing import Union
 from pathlib import Path
@@ -156,6 +155,7 @@ cdef extern from "PyMesh.hpp" namespace "mdal::python":
         string getDriverName() except +
         int groupCount() except +
         MDAL_DatasetGroupH getGroup(int index) except +
+        bool addMesh( MDAL_MeshH mesh ) except +
         bool addVertices(np.ndarray vertices) except +
         bool addFaces(np.ndarray faces, long count) except +
         bool addEdges(np.ndarray faces) except +
@@ -320,7 +320,7 @@ cdef class PyMesh:
             if last_status() != MDAL_Status.No_Err:
                 raise ValueError(last_status().name)
         else:
-            self.thisptr = new Mesh()
+            self.thisptr = new Mesh(Driver("PLY").thisptr)
         self.valid = True
 
     def __dealloc__(self):
@@ -468,6 +468,7 @@ cdef class PyMesh:
             ret = DatasetGroup()
             ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.getGroup(index)
             ret.thisdata = new Data(ret.thisptr)
+            ret.mesh = self
             return ret
 
     property groups:
@@ -498,66 +499,6 @@ cdef class PyMesh:
         if self.valid:
             if self.thisptr.setMetadata({key: value}, encoding) != MDAL_Status.No_Err:
                 raise ValueError(last_status().name)
-        
-    def meshio(self):
-        if self.valid:
-            vertices = self.vertices
-            lines = []
-            faces = []
-            tris = []
-            quads = []
-            if self.face_count == 0:
-                if self.edge_count == 0:
-                    return None
-                lines = self.edges
-                cells =[
-                    ("line", npy.stack((lines['START'],lines['END']),1))
-                ]
-            else:
-                faces = self.faces
-                lines = self.edges
-                tris = faces[faces['Vertices'] == 3]
-                quads = faces[faces['Vertices'] == 4]
-                cells = []
-                if len(lines) > 0:
-                    cells.append(("line",npy.stack((lines['START'], lines['END']), 1)))
-                if len(tris) > 0:
-                    cells.append(("triangle",npy.stack((tris['V0'], tris['V1'], tris['V2']), 1)))
-                if len(quads) > 0:
-                    cells.append(("quad",npy.stack((quads['V0'], quads['V1'], quads['V2'], quads['V3']), 1)))
-                    
-            point_data = {}
-            cell_data = {}
-            for group in self.groups:
-                if group.name == "Bed Elevation":
-                    continue
-                if group.location == 1 and group.has_scalar:
-                    point_data.update({group.name: group.data(0)['U']})
-                elif group.location == 2 and group.has_scalar:
-                    data_out = []
-                    data_in = group.data(0)['U']
-                    if len(lines) > 0:
-                        data_out.append([float("NaN") for item in lines])
-                    if len(tris) > 0:
-                        data_out.append(data_in[faces['Vertices'] == 3])
-                    if len(quads) > 0:
-                        data_out.append(data_in[faces['Vertices'] == 4])
-                    cell_data.update({group.name: data_out})
-                elif group.location == 4 and group.has_scalar:
-                    data_out = []
-                    if len(lines) > 0:
-                        data_out.append(group.data(0)['U'])
-                    if len(tris) > 0:
-                        data_out.append([ float("NaN") for item in faces[faces['Vertices'] == 3]] )
-                    if len(quads) > 0:
-                        data_out.append([ float("NaN") for item in faces[faces['Vertices'] == 4]] )
-                    cell_data.update({group.name: data_out})
-            return meshio.Mesh(
-                npy.stack((vertices['X'], vertices['Y'], vertices['Z']), 1),
-                cells,
-                point_data,
-                cell_data
-            )
     
     def save(self, uri: str = None, drv: Driver = None):
         MDAL_ResetStatus()
@@ -589,6 +530,7 @@ cdef class PyMesh:
             file: str = spl[1].strip('"')
             ret.thisptr = <MDAL_DatasetGroupH>self.thisptr.addGroup(arg.name, arg.location, arg.has_scalar, arg.uri)
             ret.thisdata = new Data(ret.thisptr)
+            ret.mesh = self
             for i in range(0, arg.dataset_count ):
                 ret.add_data(arg.data(i), arg.dataset_time(i))
         else:
@@ -649,7 +591,8 @@ cdef extern from "DatasetGroup.hpp" namespace "mdal::python":
 cdef class DatasetGroup:
     cdef MDAL_DatasetGroupH thisptr
     cdef Data* thisdata # cpp class instance used to marshall the data values
-
+    cdef PyMesh _mesh
+ 
     def __dealloc__(self):
         del self.thisdata
 
@@ -731,6 +674,14 @@ cdef class DatasetGroup:
 
         def __get__(self):
            return MDAL_M_edgeCount( <MDAL_MeshH>MDAL_G_mesh( self.thisptr ) )
+           
+    property mesh:
+    
+        def __get__(self):
+            return self._mesh
+            
+        def __set__(self, mesh):
+            self._mesh = mesh
                 
     def get_metadata(self, key: str, encoding: str = 'UTF-8'):
         value = self.metadata.get(key.encode(encoding=encoding))
@@ -781,7 +732,7 @@ cdef class DatasetGroup:
     def dataset_time(self, index):
         return MDAL_D_time(MDAL_G_dataset(self.thisptr, index))
         
-    def volumetric(self, index: int):
+    def volumetric(self, index: int = 0):
         if (self.location != MDAL_DataLocation.DataOnVolumes):
             raise ValueError("Group has no data on volumes")
         face_ind = <object>self.thisdata.getDataAsVolumeIndex(index)

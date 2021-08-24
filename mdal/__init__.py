@@ -7,9 +7,11 @@ from mdal.libmdalpython import version_string, \
     PyMesh, \
     DatasetGroup, \
     MDAL_Status, \
-    MDAL_DataLocation \
+    MDAL_DataLocation
 
-__version__ = '0.9.3'
+from mdal.transform import MDAL_transform
+
+__version__ = '1.0.0'
 
 
 class Info(object):

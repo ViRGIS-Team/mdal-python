@@ -68,6 +68,7 @@ public:
     PyArrayObject *getFaces();
     PyArrayObject *getEdges();
     
+    bool addMesh(MDAL_MeshH mesh);
     bool addVertices(PyArrayObject* vertices);
     bool addFaces(PyArrayObject* faces, long int count);
     bool addEdges(PyArrayObject* edges);

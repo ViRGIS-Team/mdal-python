@@ -70,8 +70,6 @@ Mesh::Mesh()
     if (_import_array() < 0)
         {}
         //throw pdal_error("Could not import numpy.core.multiarray.");
-    MDAL_DriverH drv = MDAL_driverFromName("Ugrid");
-    m_mdalMesh = MDAL_CreateMesh(drv);
 }
 
 Mesh::Mesh(MDAL_DriverH drv) : m_vertices(nullptr), m_faces(nullptr), m_edges(nullptr), m_mdalMesh(nullptr)
@@ -106,6 +104,16 @@ Mesh::Mesh(const char* uri) : m_vertices(nullptr), m_faces(nullptr), m_edges(nul
     if (MDAL_LastStatus() == MDAL_Status::None){
         hasMesh=true;
     }
+}
+
+//
+// add existing Mesh
+//
+
+bool Mesh::addMesh( MDAL_MeshH mesh )
+{
+    m_mdalMesh = std::move(mesh);
+    return false;
 }
 
 //

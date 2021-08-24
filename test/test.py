@@ -34,7 +34,7 @@
 ****************************************************************************/
 """
 
-from mdal import Datasource, Info, last_status, PyMesh, drivers, MDAL_DataLocation
+from mdal import Datasource, Info, last_status, PyMesh, drivers, MDAL_DataLocation, MDAL_transform
 
 print(f"MDAL Version:  {Info.version}")
 print(f"MDAL Driver Count :{Info.driver_count}")
@@ -115,72 +115,79 @@ with ds.load(0) as mesh:
     del(test)
     del(test4)
 
-    meshio = mesh.meshio()
+    meshio = MDAL_transform.to_meshio(mesh)
     mesh.save("save_test.ply")
 
-ds2 = Datasource("data/ply/all_features.ply")
-
-with ds2.load(0) as mesh:
+with Datasource("data/ply/all_features.ply").load(0) as mesh:
     mesh.save("save_test_2.ply")
 
-    ds3 = Datasource("save_test_2.ply")
-
-    with ds3.load(0) as mesh2:
+    with Datasource("save_test_2.ply").load(0) as mesh2:
         print(f"Save equality 2 : {mesh == mesh2}")
 
 print(meshio)
-print(mesh)
-print(mesh.vertex_count)
 
+with Datasource("data/tuflowfv/withMaxes/trap_steady_05_3D.nc").load() as mesh:
+    group = mesh.groups[1]
+    a, b, c = group.volumetric(0)
 
-ds = Datasource("data/tuflowfv/withMaxes/trap_steady_05_3D.nc")
-mesh = ds.load()
-group = mesh.groups[1]
-a, b, c = group.volumetric(0)
+    ds2 = Datasource("test_vol.ply")
+    with ds2.add_mesh() as mesh2:
+        mesh2.vertices = mesh.vertices
+        mesh2.faces = mesh.faces
 
-ds2 = Datasource("test_vol.ply")
-mesh2 = ds2.add_mesh()
-mesh2.vertices = mesh.vertices
-mesh2.faces = mesh.faces
+        print(f"Vertex Count :{mesh.vertex_count}")
+        print(f"Face Count : {mesh.face_count}")
 
-print(f"Vertex Count :{mesh.vertex_count}")
-print(f"Face Count : {mesh.face_count}")
+        group2 = mesh2.add_group(
+            "test", location=MDAL_DataLocation.DataOnVolumes)
+        group2.add_volumetric(group.data(), a, b)
 
-group2 = mesh2.add_group("test", location=MDAL_DataLocation.DataOnVolumes)
-group2.add_volumetric(group.data(), a, b)
+        print(f"Level Count: {group2.level_count}")
+        print(f"Location: {group2.location}")
+        print(f"MinMax: {group2.minmax}")
 
-print(f"Level Count: {group2.level_count}")
-print(f"Location: {group2.location}")
-print(f"MinMax: {group2.minmax}")
+        print(f"Dataset Count: {group2.dataset_count}")
 
-print(f"Dataset Count: {group2.dataset_count}")
+        data = group2.data(0)
+        print(f"Data Value Count: {len(data)}")
+        print(f"{data}")
 
-data = group2.data(0)
-print(f"Data Value Count: {len(data)}")
-print(f"{data}")
+        print(f"{group2.volumetric(0)}")
 
-print(f"{group2.volumetric(0)}")
-
-a, b, c = group2.volumetric(0)
-print(f"Number of Extrusion values : {len(b)}")
-mesh2.save()
-mesh3 = ds2.load()
-mesh3.info()
-group3 = mesh3.groups[1]
-print(f"{group3.location}")
-d, e, f = group3.volumetric(0)
-print(f"{group3.volumetric(0)}")
-print(f"{group3.data(0)}")
-print("Mesh Equality : {mesh2 == mesh3}")
+        a, b, c = group2.volumetric(0)
+        print(f"Number of Extrusion values : {len(b)}")
+        mesh2.save()
+        with ds2.load() as mesh3:
+            mesh3.info()
+            group3 = mesh3.groups[1]
+            print(f"{group3.location}")
+            d, e, f = group3.volumetric(0)
+            print(f"{group3.volumetric(0)}")
+            print(f"{group3.data(0)}")
+            print("Mesh Equality : {mesh2 == mesh3}")
 
 
 """deep copy test"""
 
-ds = Datasource("data/ply/all_features.ply")
-mesh = ds.load()
-mesh2 = ds.add_mesh("test")
-mesh2 = ds.add_mesh("test")
-mesh2.deep_copy(mesh)
-mesh2.data_copy(mesh)
-print(f"{mesh2.info()}")
+with Datasource("data/ply/all_features.ply").load() as mesh:
+    with ds.add_mesh("test") as mesh2:
+        mesh2.deep_copy(mesh)
+        mesh2.data_copy(mesh)
+        print(f"{mesh2.info()}")
 
+    """meshio tests"""
+    mio = MDAL_transform.to_meshio(mesh)
+    print(f"{mio}")
+    mio.write("test.vtk")
+
+    group = mesh.group(1)
+
+    mio2 = MDAL_transform.to_meshio(group)
+    print(f"{mio2}")
+
+with Datasource("test_vol.ply").load() as mesh:
+    group = mesh.group(1)
+    mio2 = MDAL_transform.to_meshio(group)
+    print(f"{mio2}")
+
+print("all finished !")
