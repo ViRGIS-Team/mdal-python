@@ -117,7 +117,7 @@ class MDAL_transform:
                 if type(arg) == PyMesh:
                     continue
                 #  create the mesh as a mixture of Wedge and Hexahedron
-                (points, cells, cell_data) = cls.vol_to_voxel(mesh, group, time)
+                (points, cells, cell_data) = cls._vol_to_voxel(group, time)
 
             elif group.location == 4 and group.has_scalar:
                 #  Edge data gets written only to lines but NaN also needs to be written to triangles and quads
@@ -139,14 +139,15 @@ class MDAL_transform:
         )
 
     @classmethod
-    def vol_to_voxel(cls, mesh: PyMesh, group: DatasetGroup, index: int = 0):
-        """courtesy method to convert a volumetric DatasetGroup into 3D vertices and voxels with data
+    def _vol_to_voxel(cls, group: DatasetGroup, index: int = 0):
+        """internal method to convert a volumetric DatasetGroup into 3D vertices and voxels with data
 
         NOTE: All MDAL_transform utilities are beta
         """
         # TODO - convert this to cpp
         if group.location != MDAL_DataLocation.DataOnVolumes:
             raise ValueError("Not a Volumetric Data set")
+        mesh = group.mesh
         vertices2D = mesh.vertices
         faces = mesh.faces
         wedges = []
@@ -190,15 +191,15 @@ class MDAL_transform:
             last_level = 0
             while True:
                 # check which new columes match this voxel
-                curr_level = level_values[face_ind[neighbours[min_idx]][0] + neighbours[min_idx]
-                                          + z[min_idx]][0]
+                curr_level = level_values[face_ind[neighbours[min_idx]][0] + neighbours[min_idx] +
+                                          z[min_idx]][0]
                 this_z = []
                 for face_id in range(0, len(neighbours)):
                     if z[face_id] is None:
                         # find if the current cell is the closest to this bottom cell
                         this_level = bott_buff[face_id]
-                        next_level = level_values[face_ind[neighbours[min_idx]][0] + neighbours[min_idx] +
-                                                  z[min_idx] + 1][0]
+                        next_level = level_values[face_ind[neighbours[min_idx]][0] + neighbours[min_idx]
+                                                  + z[min_idx] + 1][0]
                         if min(curr_level, next_level) <= this_level <= max(curr_level, next_level):
                             z[face_id] = 0
                             this_z.append(this_level)
@@ -269,3 +270,40 @@ class MDAL_transform:
             cells.append(("hexahedron", hexa))
             cell_data.append(hexa_data)
         return (vertices3D, cells, {group.name: cell_data})
+
+    @classmethod
+    def to_triangular_mesh(cls, group: DatasetGroup, index: int = 0):
+        if not o3d_flag:
+            raise ImportError(
+                "Could not find Open3D. Try `pip install open3d`")
+
+    @classmethod
+    def to_point_cloud(cls, group: DatasetGroup, index: int = 0):
+        if not o3d_flag:
+            raise ImportError(
+                "Could not find Open3D. Try `pip install open3d`")
+        # TODO - convert this to cpp
+        if group.location != MDAL_DataLocation.DataOnVolumes:
+            raise ValueError("Not a Volumetric Data set")
+        mesh = group.mesh
+        data = group.data(index)
+        points = np.empty((data.shape[0], 3))
+        (level_counts, level_values, face_ind) = group.volumetric(index)
+        faces = mesh.faces
+        for i in range(0, len(faces)):
+            face = faces[i]
+            x = []
+            y = []
+            z = []
+            for j in range(1, face[0]):
+                x.append(mesh.vertices[face[j]]['X'])
+                y.append(mesh.vertices[face[j]]['Y'])
+                z.append(mesh.vertices[face[j]]['Z'])
+            centroid = (np.average(x), np.average(y), np.average(z))
+            z_last = level_values[face_ind[i][0] + i][0]
+            for k in range(0, level_counts[i][0]):
+                z_next = level_values[face_ind[i][0] + i + k + 1][0]
+                z = (z_last + z_next) / 2
+                points[face_ind[i][0] + k] = (centroid[0], centroid[1],
+                                              centroid[2] + z)
+        return o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
