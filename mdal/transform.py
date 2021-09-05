@@ -139,10 +139,52 @@ class MDAL_transform:
         )
 
     @classmethod
+    def from_meshio(cls, mesh: meshio.Mesh):
+        """attempts to convert meshio.Mesh to mdal.PyMesh
+
+        CONSTRAINT : only converts scalar datasets.
+
+        CONSTRAINT : will not convert volumetric datasets
+
+        NOTE: All MDAL_transform utilities are beta
+
+        """
+        mdal_mesh = PyMesh()
+        mdal_mesh.vertices = np.fromiter(map(tuple, mesh.points), np.dtype(
+            [('X', '<f8'), ('Y', '<f8'), ('Z', '<f8')]))
+        faces = np.empty((0), np.dtype(
+            [('Vertices', '<u4'), ('V0', '<u4'), ('V1', '<u4'), ('V2', '<u4'), ('V3', '<u4')]))
+        for cell_type in mesh.cells:
+            if len(cell_type) > 0:
+                if cell_type.type == "line":
+                    mdal_mesh.edges = np.fromiter(map(tuple, cell_type.data), np.dtype([
+                                                  ('START', '<u4'), ('END', '<u4')]))
+                    continue
+                if cell_type.type == "triangle":
+                    tris = np.fromiter(map(lambda x: tuple(np.insert(np.insert(x, 3, 0), 0, 3)), cell_type.data), np.dtype(
+                        [('Vertices', '<u4'), ('V0', '<u4'), ('V1', '<u4'), ('V2', '<u4'), ('V3', '<u4')]))
+                    faces = np.append(faces, tris)
+                    continue
+                if cell_type.type == "quad":
+                    quads = np.fromiter(map(lambda x: tuple(np.insert(x, 0, 4)), cell_type.data), np.dtype(
+                        [('Vertices', '<u4'), ('V0', '<u4'), ('V1', '<u4'), ('V2', '<u4'), ('V3', '<u4')]))
+                    faces = np.append(faces, quads)
+                    continue
+                if cell_type.type == "wedge":
+                    continue
+                if cell_type.type == "hexahedron":
+                    continue
+        if len(faces) > 0:
+            mdal_mesh.faces = faces
+        return mdal_mesh
+
+    @classmethod
     def _vol_to_voxel(cls, group: DatasetGroup, index: int = 0):
         """internal method to convert a volumetric DatasetGroup into 3D vertices and voxels with data
 
         NOTE: All MDAL_transform utilities are beta
+
+        TODO : convert to C++
         """
         # TODO - convert this to cpp
         if group.location != MDAL_DataLocation.DataOnVolumes:
@@ -306,4 +348,6 @@ class MDAL_transform:
                 z = (z_last + z_next) / 2
                 points[face_ind[i][0] + k] = (centroid[0], centroid[1],
                                               centroid[2] + z)
-        return o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
+        pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
+
+        return pcd
