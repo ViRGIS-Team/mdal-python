@@ -202,10 +202,11 @@ PyArrayObject* Data::getDataAsDouble(int index)
     int indexStart = 0;
     int next = 1024;
 
-    for (int j = 0; j < bufs; j++)
+    while(true)
     {
-        int remain = valueCount - j*1024;
+        int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
+        if (remain <= 0 ) break;
         count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , type, buffer);
         if (count != next) 
         {
@@ -215,7 +216,7 @@ PyArrayObject* Data::getDataAsDouble(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, (1024 * j) + i);
+            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
                 
             for (int l =0; l < dims; l++)
             {
@@ -276,10 +277,11 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
     int indexStart = 0;
     int next = 1024;
 
-    for (int j = 0; j < bufs; j++)
+    while(true)
     {
-        int remain = valueCount - j*1024;
+        int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
+        if (remain <= 0 ) break;
         count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::FACE_INDEX_TO_VOLUME_INDEX_INTEGER, buffer);
         if (count != next) 
         {
@@ -289,7 +291,7 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, (1024 * j) + i);
+            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
             uint32_t val = (uint32_t)buffer[idx];
             idx++;
             std::memcpy(p, &val, 4);
@@ -345,10 +347,11 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
     int indexStart = 0;
     int next = 1024;
 
-    for (int j = 0; j < bufs; j++)
+    while(true)
     {
-        int remain = valueCount - j*1024;
+        int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
+        if (remain <= 0 ) break;
         count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_COUNT_INTEGER, buffer);
 
         if (count != next) 
@@ -359,7 +362,7 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, (1024 * j) + i);
+            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
             uint32_t val = (uint32_t)buffer[idx];
             idx++;
             std::memcpy(p, &val, 4);
@@ -415,11 +418,11 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
     int indexStart = 0;
     int next = 1024;
 
-    for (int j = 0; j < bufs; j++)
+    while(true)
     {
-        int remain = valueCount - j*1024;
+        int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
-  
+        if (remain <= 0 ) break;
         count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_DOUBLE, buffer);
 
         if (count != next) 
@@ -430,7 +433,7 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, (1024 * j) + i);
+            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
             double val = buffer[idx];
             idx++;
             std::memcpy(p, &val, 8);

@@ -36,6 +36,9 @@
 
 from mdal import Datasource, Info, last_status, PyMesh, drivers, MDAL_DataLocation, MDAL_transform
 
+import numpy as np
+import open3d as o3d
+
 print(f"MDAL Version:  {Info.version}")
 print(f"MDAL Driver Count :{Info.driver_count}")
 print(last_status().name)
@@ -189,5 +192,17 @@ with Datasource("test_vol.ply").load() as mesh:
     group = mesh.group(1)
     mio2 = MDAL_transform.to_meshio(group)
     print(f"{mio2}")
+
+
+with Datasource("data/ply/test_mesh.ply").load() as mesh:
+    tm = MDAL_transform.to_triangle_mesh(mesh)
+    tm2 = o3d.io.read_triangle_mesh("data/ply/test_mesh.ply")
+    tmc = np.asarray(tm.vertex_colors)
+    tmc2 = np.asarray(tm2.vertex_colors)
+    for i in range(len(tmc)):
+        value = tmc[i] - tmc2[i]
+        if not (value == [0, 0, 0]).all():
+            print(value)
+            break
 
 print("all finished !")

@@ -314,10 +314,48 @@ class MDAL_transform:
         return (vertices3D, cells, {group.name: cell_data})
 
     @classmethod
-    def to_triangular_mesh(cls, group: DatasetGroup, index: int = 0):
+    def to_triangle_mesh(cls, arg, index: int = 0):
         if not o3d_flag:
             raise ImportError(
                 "Could not find Open3D. Try `pip install open3d`")
+        if type(arg) == PyMesh:
+            mesh = arg
+            red = np.empty(mesh.vertex_count, dtype = 'float64')
+            blue = np.empty(mesh.vertex_count, dtype = 'float64')
+            green = np.empty(mesh.vertex_count, dtype = 'float64')
+            for i in range(mesh.group_count):
+                group = mesh.group(i)
+                if group.location == MDAL_DataLocation.DataOnVertices:
+                    if group.name.lower() == "red" or group.name.lower() == "r":
+                        red = group.data(index)['U']
+                    if group.name.lower() == "blue" or group.name.lower() == "b":
+                        blue = group.data(index)['U']
+                    if group.name.lower() == "green" or group.name.lower() == "g":
+                        green = group.data(index)['U']
+            d_range = max(np.max(red), np.max(blue), np.max(green))
+            if d_range > 1 <= 255:
+                red /= 255
+                blue /= 255
+                green /= 255
+        else:
+            mesh = arg.mesh
+            group = arg
+            red = np.empty(mesh.vertex_count, dtype = 'float64')
+            blue = np.empty(mesh.vertex_count, dtype = 'float64')
+            green = np.empty(mesh.vertex_count, dtype = 'float64')
+            if group.location == MDAL_DataLocation.DataOnVertices:
+                red = group.data(index)['U']
+                if not group.has_scalar:
+                    blue = group.data(index)['V']
+        v = mesh.vertices
+        points = np.stack((v['X'], v['Y'], v['Z']), 1)
+        f = mesh.faces
+        faces = np.stack((f['V0'], f['V1'], f['V2']), 1)
+        triangle_mesh = o3d.geometry.TriangleMesh(
+            o3d.utility.Vector3dVector(points), o3d.utility.Vector3iVector(faces))
+        triangle_mesh.vertex_colors = o3d.utility.Vector3dVector(
+            np.stack((red, green, blue), axis = -1))
+        return triangle_mesh
 
     @classmethod
     def to_point_cloud(cls, group: DatasetGroup, index: int = 0):
@@ -349,5 +387,4 @@ class MDAL_transform:
                 points[face_ind[i][0] + k] = (centroid[0], centroid[1],
                                               centroid[2] + z)
         pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
-
         return pcd
