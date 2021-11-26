@@ -1,7 +1,8 @@
 Changes
 --------------------------------------------------------------------------------
 
-# 1.0.0b1
+1.0.0
+-----
 
 First Read / Write Release
 
@@ -13,7 +14,8 @@ First Read / Write Release
 - beta level read integration with Open3D
 
 
-# 0.9.0
+0.9.0
+-----
 
 First release. This is beta software and has not been completely tested yet:
 

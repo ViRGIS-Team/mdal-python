@@ -40,7 +40,7 @@ if sys.version_info >= (3,):
 with open('README.rst', 'r', **open_kwds) as fp:
     readme = fp.read()
 
-with open('CHANGES.md', 'r', **open_kwds) as fp:
+with open('CHANGES.rst', 'r', **open_kwds) as fp:
     changes = fp.read()
 
 long_description = readme + '\n\n' +  changes
