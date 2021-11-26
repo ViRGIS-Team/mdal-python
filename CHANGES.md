@@ -1,7 +1,19 @@
 Changes
 --------------------------------------------------------------------------------
 
-0.9.0
+# 1.0.0b1
+
+First Read / Write Release
+
+- read and write all MDAL compatible file formats
+- access vertex, face, edge and volume data as numpy arrays
+- write vertex, face, edge and volume data from numpy arrays
+- access and write scalar and vector datasets
+- beta level read and write integration with meshio
+- beta level read integration with Open3D
+
+
+# 0.9.0
 
 First release. This is beta software and has not been completely tested yet:
 
