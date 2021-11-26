@@ -196,6 +196,7 @@ with Datasource("test_vol.ply").load() as mesh:
 
 with Datasource("data/ply/test_mesh.ply").load() as mesh:
     tm = MDAL_transform.to_triangle_mesh(mesh)
+    print(tm)
     tm2 = o3d.io.read_triangle_mesh("data/ply/test_mesh.ply")
     tmc = np.asarray(tm.vertex_colors)
     tmc2 = np.asarray(tm2.vertex_colors)
@@ -204,5 +205,10 @@ with Datasource("data/ply/test_mesh.ply").load() as mesh:
         if not (value == [0, 0, 0]).all():
             print(value)
             break
+
+with Datasource("test_vol.ply").load() as mesh:
+    pc = MDAL_transform.to_point_cloud(mesh.group(1))
+    print(pc)
+
 
 print("all finished !")
