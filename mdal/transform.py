@@ -176,6 +176,29 @@ class MDAL_transform:
                     continue
         if len(faces) > 0:
             mdal_mesh.faces = faces
+        point_data = mesh.point_data
+        for key in point_data.keys():
+            data = np.array([tuple([item]) for item in point_data[key]], np.dtype([('U', '<f8')]))
+            group = mdal_mesh.add_group(key)
+            group.add_data(data)
+        cell_data = mesh.cell_data
+        for key in cell_data.keys():
+            data = cell_data[key]
+            face_data = np.empty((0), np.dtype([('U', '<f8')]))
+            for i in range(0, len(data)):
+                if not np.isnan(np.sum(data[i])): # check for nan in the data
+                    cell_type = mesh.cells[i]
+                    this_data = np.array([tuple([item]) for item in data[i]], np.dtype([('U', '<f8')]))
+                    if cell_type.type == "line":
+                        group = mdal_mesh.add_group(key, location=MDAL_DataLocation.DataOnEdges)
+                        group.add_data(this_data)
+                    if cell_type.type == "triangle" or cell_type.type == "quad":
+                        face_data = np.append(face_data, this_data)
+                    if cell_type.type == "wedge" or cell_type.type == "hexahedron":
+                        pass
+            if len(face_data) != 0:
+                group = mdal_mesh.add_group(key, location=MDAL_DataLocation.DataOnFaces)
+                group.add_data(face_data)
         return mdal_mesh
 
     @classmethod
@@ -387,4 +410,10 @@ class MDAL_transform:
                 points[face_ind[i][0] + k] = (centroid[0], centroid[1],
                                               centroid[2] + z)
         pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
+        red = group.data(index)['U']
+        blue = np.empty(len(red), dtype = 'float64')
+        green = np.empty(len(red), dtype = 'float64')
+        if not group.has_scalar:
+            blue = group.data(index)['V']
+        pcd.colors = o3d.utility.Vector3dVector(np.stack((red, green, blue), axis = -1))
         return pcd
