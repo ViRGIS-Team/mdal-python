@@ -257,6 +257,9 @@ The MDAL_transform.to_point_cloud converts a MDAL
 volumetric DatasetGroup to an Open3D PointCloud with the data values
 converted to color as above.
 
+.. note::
+    Open3D is NOT loaded as dependency. If these commands are used in an environment without Open3D, they will fail with a user friendly message.
+
 This integration is beta at the moment.
 
 .. code-block:: python
@@ -287,6 +290,11 @@ This integration is beta at the moment.
 
 
     print("all finished !")
+
+.. note::
+
+    About Python Versions. MDAL supports 3.8, 3.9 and 3.10. Open3D supports 3.6, 3.7 and 3.8. Therefore, 
+    if you want to use Open3D, the Python version should be pinned to 3.8 before you start.
 
 
 Documentation
