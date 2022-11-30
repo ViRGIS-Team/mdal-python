@@ -39,7 +39,8 @@ jobs:
 
     - name: Install mdal python
       run: |
-        set
+        echo $CONDA_PREFIX
+        ls $CONDA_PREFIX/lib
         pip install .
 
     - name: Install pytest
