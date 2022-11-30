@@ -38,7 +38,9 @@ jobs:
           python=${{ matrix.python-version }}
 
     - name: Install mdal python
-      run: pip install .
+      run: |
+        set
+        pip install .
 
     - name: Install pytest
       run: pip install --upgrade --force-reinstall pytest
