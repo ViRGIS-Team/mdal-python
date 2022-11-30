@@ -40,3 +40,4 @@ __pycache__
 mdal.egg-info/
 *.wpr
 *.wpu
+mdal-python.code-workspace

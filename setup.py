@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-# Stlen from python-pdal
+# Stolen from python-pdal
 # Stolen from Shapely's setup.py
-# Onvironment variables influence this script.
+# Environment variables influence this script.
 #
-# MDAL_LIBRARY_PATH: a path to a PDAL C++ shared library.
+# MDAL_LIBRARY_PATH: a path to a MDAL C++ shared library.
 #
 #
 # NB: within this setup scripts, software versions are evaluated according
@@ -61,11 +61,11 @@ setup_args = dict(
     url                 = 'https://mdal.xyz',
     long_description    = long_description,
     long_description_content_type = 'text/x-rst',
-    test_suite          = 'test',
     packages            = [
         'mdal',
     ],
     include_package_data = False,
+    exclude_package_data={'': ['test']},
     classifiers         = [
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
