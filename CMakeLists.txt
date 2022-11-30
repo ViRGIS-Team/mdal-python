@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.11.0)
 project(MDAL)
+set(CMAKE_FIND_DEBUG_MODE ON )
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -74,63 +75,3 @@ endfunction()
 
 
 
-
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    # For newer versions of python (3.8+), C extensions don't link against
-    # libpython and instead get symbol definitions from the python interpreter
-    # executable. PDAL plugins need to link against libpython, but if a plugin
-    # is loaded inside a python process, it must resolve symbols from the python
-    # executable instead of libpython. Using flat namespace allows that.
-    set(PYTHON_LINK_LIBRARY ${PYTHON_LINK_LIBRARY} -Wl,-flat_namespace)
-endif()
-
-
-
-if (WITH_TESTS)
-    enable_testing()
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    add_subdirectory(pdal/test/gtest)
-    enable_testing()
-    include_directories(pdal/test/gtest/include .. ${CMAKE_CURRENT_BINARY_DIR})
-
-
-
-
-    PDAL_PYTHON_ADD_TEST(pdal_io_numpy_test
-        FILES
-            ./pdal/test/NumpyReaderTest.cpp
-            ./pdal/test/Support.cpp
-            ./pdal/plang/Invocation.cpp
-            ./pdal/plang/Environment.cpp
-            ./pdal/plang/Redirector.cpp
-            ./pdal/plang/Script.cpp
-        LINK_WITH
-            ${numpy_reader}
-            ${Python3_LIBRARIES}
-            ${PDAL_LIBRARIES}
-            ${CMAKE_DL_LIBS}
-        SYSTEM_INCLUDES
-            ${PDAL_INCLUDE_DIRS}
-            ${Python3_INCLUDE_DIRS}
-            ${Python3_NumPy_INCLUDE_DIRS}
-    )
-
-    PDAL_PYTHON_ADD_TEST(pdal_filters_python_test
-        FILES
-            ./pdal/test/PythonFilterTest.cpp
-            ./pdal/test/Support.cpp
-            ./pdal/plang/Invocation.cpp
-            ./pdal/plang/Environment.cpp
-            ./pdal/plang/Redirector.cpp
-            ./pdal/plang/Script.cpp
-        LINK_WITH
-            ${python_filter}
-            ${Python3_LIBRARIES}
-            ${PDAL_LIBRARIES}
-            ${CMAKE_DL_LIBS}
-        SYSTEM_INCLUDES
-            ${PDAL_INCLUDE_DIRS}
-            ${Python3_INCLUDE_DIRS}
-            ${Python3_NumPy_INCLUDE_DIRS}
-    )
-endif (WITH_TESTS)
