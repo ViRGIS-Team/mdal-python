@@ -1,0 +1,9 @@
+name: testenv
+channels:
+  - conda-forge
+dependencies:
+  - scikit-build
+  - numpy
+  - mdal
+  - pytest
+  - meshio
