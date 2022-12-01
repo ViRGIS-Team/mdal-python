@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: [ 'windows-latest']
+        os: [ 'macos-latest']
         python-version: ['3.8','3.9', '3.10', '3.11']
 
     steps:
@@ -39,7 +39,7 @@ jobs:
 
     - name: Install mdal python
       run: |
-        pip install .
+        pip install . -vv
 
     - name: Install pytest
       run: pip install --upgrade --force-reinstall pytest
