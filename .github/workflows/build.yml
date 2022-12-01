@@ -4,9 +4,6 @@ on:
   pull_request:
     branches:
     - '*'
-  push:
-    branches:
-    - '*'
   release:
     types:
       - published
@@ -28,7 +25,7 @@ jobs:
 
     steps:
     - name: Check out mdal-python
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup micromamba
       uses: mamba-org/provision-with-micromamba@main
@@ -51,7 +48,7 @@ jobs:
       run: python setup.py sdist
 
     - name: Upload distribution(s)
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.os }}-py${{ matrix.python-version }}
         path: ./dist/*
@@ -62,7 +59,7 @@ jobs:
 
     steps:
     - name: Download distributions
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         path: ./artifacts
 
