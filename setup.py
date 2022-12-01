@@ -48,7 +48,7 @@ long_description = readme + '\n\n' +  changes
 # https://github.com/ktbarrett/hello/blob/master/CMakeLists.txt
 
 setup_args = dict(
-    name                = 'mdal',
+    name                = 'mdal-python',
     version             = str(module_version),
     requires            = ['Python (>=3.0)', 'Numpy','meshio'],
     description         = 'Mesh data processing',
