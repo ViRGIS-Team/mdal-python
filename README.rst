@@ -41,6 +41,17 @@ MDAL Python support is installable via Conda:
 
     conda install -c conda-forge mdal-python
 
+PyPI
+...............................................................................
+
+MDAL Python support can be installed using `pip`
+
+.. code-block::
+
+   pip install mdal-python
+   
+This will ONLY work if there is a valid and working installation of MDAL on the device and accessible through the device library search path.
+
 GitHub
 ................................................................................
 
