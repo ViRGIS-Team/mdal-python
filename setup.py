@@ -50,7 +50,7 @@ long_description = readme + '\n\n' +  changes
 setup_args = dict(
     name                = 'mdal-python',
     version             = str(module_version),
-    requires            = ['Python (>=3.0)', 'Numpy','meshio'],
+    install_requires    = [ 'numpy','meshio'],
     description         = 'Mesh data processing',
     license             = 'MIT',
     keywords            = 'mesh data spatial',
@@ -58,7 +58,7 @@ setup_args = dict(
     author_email        = 'runette@gmail.com',
     maintainer          = 'Paul Harwood',
     maintainer_email    = 'runette@gmail.com',
-    url                 = 'https://mdal.xyz',
+    url                 = 'https://www.mdal.xyz',
     long_description    = long_description,
     long_description_content_type = 'text/x-rst',
     packages            = [
@@ -74,7 +74,8 @@ setup_args = dict(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
         'Topic :: Scientific/Engineering :: GIS',
     ],
 
