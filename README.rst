@@ -6,7 +6,7 @@ MDAL Python Integration
    :target: https://anaconda.org/conda-forge/mdal-python
    
 .. image:: https://badge.fury.io/py/mdal-python.svg
-   :targer: https://badge.fury.io/py/mdal-python
+   :target: https://badge.fury.io/py/mdal-python
 
 Basics
 ------
