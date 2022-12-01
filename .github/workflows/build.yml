@@ -41,12 +41,6 @@ jobs:
       run: |
         pip install . -vv
 
-    - name: Install pytest
-      run: pip install --upgrade --force-reinstall pytest
-
-    - name: Test
-      run: |
-        py.test -v test/
 
     - name: Build wheel distribution
       if: matrix.os != 'ubuntu-latest'
