@@ -11,7 +11,7 @@ from mdal.libmdalpython import version_string, \
 
 from mdal.transform import MDAL_transform
 
-__version__ = '1.0.1a1'
+__version__ = '1.0.1'
 
 
 class Info(object):
