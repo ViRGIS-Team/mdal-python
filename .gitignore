@@ -41,3 +41,5 @@ mdal.egg-info/
 *.wpr
 *.wpu
 mdal-python.code-workspace
+mdal-pypi/LICENSE
+mdal-pypi/README.rst
