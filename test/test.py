@@ -46,8 +46,8 @@ print(last_status().name)
 for driver in Info.drivers:
     print(driver)
 
-
 ds = Datasource("data/ply/test_mesh.ply")
+
 print(ds.meshes)
 
 with ds.load(0) as mesh:

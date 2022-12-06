@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mdal"
+version = "1.0.1"
+authors = [
+  { name="MDAL Project", email="mdal-developer@lists.osgeo.org" },
+  { name="Paul Harwood", email="runette@gmail.com" },
+]
+maintainers = [
+    { name="Paul Harwood", email="runette@gmail.com"},
+]
+description = "Mesh data processing"
+license = "MIT"
+readme = "README.rst"
+requires-python = ">=3.8"
+dependencies = [
+    "mdal-python",
+]
+classifiers = [
+        'Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Topic :: Scientific/Engineering :: GIS',
+]
+
+[project.urls]
+"Homepage" = "https://www.mdal.xyz"
+"Bug Tracker" = "https://github.com/lutraconsulting/MDAL/issues"
