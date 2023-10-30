@@ -450,8 +450,9 @@ bool Mesh::addFaces(PyArrayObject* faces, long int count){
     PyObject *names_dict = dtype->fields;
     PyObject *names = PyDict_Keys(names_dict);
     PyObject *values = PyDict_Values(names_dict);
-    if (!names || !values) {}
+    if (!names || !values) {
         //throw pdal_error("Bad field specification in numpy array.");
+    }
 
     if (numFields< 3) {}
         //throw pdal_error("Faces"
