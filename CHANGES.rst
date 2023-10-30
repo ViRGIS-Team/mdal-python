@@ -1,6 +1,14 @@
 Changes
 --------------------------------------------------------------------------------
 
+2.0.0
+-----
+
+UNDER DEVELOPMENT
+
+- fix memory leaks and inconsistencies around the Datagroup object
+- remove Open3D integration to separate package
+
 1.0.0
 -----
 
