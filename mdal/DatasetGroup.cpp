@@ -122,8 +122,14 @@ PyArrayObject* Data::getDataAsDouble(int index)
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
         return (PyArrayObject*)defaultArray();
     }
+
+    MDAL_DatasetH datasetH = MDAL_G_dataset(m_data, index);
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
+        return (PyArrayObject*)defaultArray();
+    }
     
-    npy_intp valueCount = (npy_intp)MDAL_D_valueCount( MDAL_G_dataset(m_data, index));
+    npy_intp valueCount = (npy_intp)MDAL_D_valueCount( datasetH);
     int dims;
     MDAL_DataType type;
     if (MDAL_G_hasScalarData(m_data)) 
@@ -207,7 +213,7 @@ PyArrayObject* Data::getDataAsDouble(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , type, buffer);
+        count = MDAL_D_data(datasetH, indexStart, next , type, buffer);
         if (count != next) 
         {
             delete [] buffer;
@@ -244,8 +250,14 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
         return (PyArrayObject*)defaultArray();
     }
+
+    MDAL_DatasetH datasetH = MDAL_G_dataset(m_data, index);
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
+        return (PyArrayObject*)defaultArray();
+    }
     
-    npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data));
+    npy_intp valueCount = (npy_intp)MDAL_M_faceCount( datasetH );
     
     PyObject* dict = PyDict_New();
     PyObject* formats = PyList_New(1);
@@ -282,7 +294,7 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::FACE_INDEX_TO_VOLUME_INDEX_INTEGER, buffer);
+        count = MDAL_D_data( datasetH, indexStart, next , MDAL_DataType::FACE_INDEX_TO_VOLUME_INDEX_INTEGER, buffer);
         if (count != next) 
         {
             delete [] buffer;
@@ -314,6 +326,12 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
         return (PyArrayObject*)defaultArray();
     }
+
+    MDAL_DatasetH datasetH = MDAL_G_dataset(m_data, index);
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
+        return (PyArrayObject*)defaultArray();
+    }
     
     npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data));
     
@@ -352,7 +370,7 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_COUNT_INTEGER, buffer);
+        count = MDAL_D_data( datasetH, indexStart, next , MDAL_DataType::VERTICAL_LEVEL_COUNT_INTEGER, buffer);
 
         if (count != next) 
         {
@@ -383,6 +401,12 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
     if (_import_array() < 0)
     {
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return (PyArrayObject*)defaultArray();
+    }
+
+    MDAL_DatasetH datasetH = MDAL_G_dataset(m_data, index);
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
         return (PyArrayObject*)defaultArray();
     }
     
@@ -423,7 +447,7 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_DOUBLE, buffer);
+        count = MDAL_D_data( datasetH, indexStart, next , MDAL_DataType::VERTICAL_LEVEL_DOUBLE, buffer);
 
         if (count != next) 
         {
