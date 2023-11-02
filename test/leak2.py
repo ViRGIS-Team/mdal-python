@@ -8,7 +8,7 @@ ds = Datasource(mypath)
 with ds.load() as mesh:
     print("mesh loaded")
     group = mesh.group(3)
-    for i in range(100):
+    for i in range(1000):
         for j in range(0, group.dataset_count):
             print(j)
             data = group.data(j)

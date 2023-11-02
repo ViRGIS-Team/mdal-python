@@ -64,6 +64,8 @@ Data::~Data()
 {
     if (m_dataset)
         Py_XDECREF((PyObject *)m_dataset);
+    if (m_data)
+        delete m_data;
 }
 
 // Create dataset object
