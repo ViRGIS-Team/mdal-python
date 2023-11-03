@@ -518,6 +518,8 @@ MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)
     }
     
     MDAL_G_addDataset(m_data, time, d_array, nullptr);
+
+    Py_XDECREF(data);
     
     return MDAL_LastStatus();
 }
@@ -586,6 +588,8 @@ MDAL_Status Data::setDataAsVolume(PyArrayObject* data, PyArrayObject* verticalLe
     }
     
     Py_XINCREF(data);
+    Py_XINCREF(verticalLevelCounts);
+    Py_XINCREF(verticalLevels);
 
     dtype = PyArray_DTYPE(data);
     ndims = PyArray_NDIM(data);
@@ -618,6 +622,10 @@ MDAL_Status Data::setDataAsVolume(PyArrayObject* data, PyArrayObject* verticalLe
     }
     
     MDAL_G_addDataset3D(m_data, time, d_array, vl_array, v_array);
+
+    Py_XDECREF(data);
+    Py_XDECREF(verticalLevelCounts);
+    Py_XDECREF(verticalLevels);
     return MDAL_LastStatus();
 }
 
