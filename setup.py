@@ -6,7 +6,6 @@
 #
 # MDAL_LIBRARY_PATH: a path to a MDAL C++ shared library.
 #
-#
 # NB: within this setup scripts, software versions are evaluated according
 # to https://www.python.org/dev/peps/pep-0440/.
 
