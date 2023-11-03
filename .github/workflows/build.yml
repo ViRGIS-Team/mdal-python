@@ -2,10 +2,7 @@ name: Build
 
 on:
   pull_request:
-    types:
-      - opened
-      - edited
-      - closed
+
   release:
     types:
       - published
