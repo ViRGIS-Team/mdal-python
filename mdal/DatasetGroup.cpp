@@ -122,8 +122,14 @@ PyArrayObject* Data::getDataAsDouble(int index)
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
         return (PyArrayObject*)defaultArray();
     }
+
+    MDAL_DatasetH datasetH = MDAL_G_dataset(m_data, index);
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
+        return (PyArrayObject*)defaultArray();
+    }
     
-    npy_intp valueCount = (npy_intp)MDAL_D_valueCount( MDAL_G_dataset(m_data, index));
+    npy_intp valueCount = (npy_intp)MDAL_D_valueCount( datasetH);
     int dims;
     MDAL_DataType type;
     if (MDAL_G_hasScalarData(m_data)) 
@@ -190,15 +196,16 @@ PyArrayObject* Data::getDataAsDouble(int index)
     }
 
     Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
+    Py_XDECREF(m_dataset);
 
     // This is a valueCount array.
-    PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+    m_dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
             1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
 
     double* buffer = new double[dims * 1024];
     size_t count = 0;
-    int bufs = std::ceil(valueCount/1024);
-    if (bufs == 0) bufs = 1;
     int indexStart = 0;
     int next = 1024;
 
@@ -207,7 +214,7 @@ PyArrayObject* Data::getDataAsDouble(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , type, buffer);
+        count = MDAL_D_data(datasetH, indexStart, next , type, buffer);
         if (count != next) 
         {
             delete [] buffer;
@@ -216,7 +223,7 @@ PyArrayObject* Data::getDataAsDouble(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
+            char* p = (char *)PyArray_GETPTR1(m_dataset, indexStart + i);
                 
             for (int l =0; l < dims; l++)
             {
@@ -230,7 +237,7 @@ PyArrayObject* Data::getDataAsDouble(int index)
     }
     delete [] buffer;
     
-    return dataset;
+    return m_dataset;
 }
 
 PyArrayObject* Data::getDataAsVolumeIndex(int index)
@@ -244,8 +251,13 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
         return (PyArrayObject*)defaultArray();
     }
+
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
+        return (PyArrayObject*)defaultArray();
+    }
     
-    npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data));
+    npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data) );
     
     PyObject* dict = PyDict_New();
     PyObject* formats = PyList_New(1);
@@ -265,15 +277,16 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
     }
 
     Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
+    Py_XDECREF(m_dataset);
 
     // This is a dsCount x valueCount array.
-    PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+    m_dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
             1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
 
     int* buffer = new int[1024];
     size_t count = 0;
-    int bufs = std::ceil(valueCount/1024);
-    if (bufs == 0) bufs = 1;
     int indexStart = 0;
     int next = 1024;
 
@@ -282,7 +295,7 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::FACE_INDEX_TO_VOLUME_INDEX_INTEGER, buffer);
+        count = MDAL_D_data( MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::FACE_INDEX_TO_VOLUME_INDEX_INTEGER, buffer);
         if (count != next) 
         {
             delete [] buffer;
@@ -291,7 +304,7 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
+            char* p = (char *)PyArray_GETPTR1(m_dataset, indexStart + i);
             uint32_t val = (uint32_t)buffer[idx];
             idx++;
             std::memcpy(p, &val, 4);
@@ -300,12 +313,12 @@ PyArrayObject* Data::getDataAsVolumeIndex(int index)
     }
     delete [] buffer;
     
-    return dataset;
+    return m_dataset;
 }
 
 PyArrayObject* Data::getDataAsLevelCount(int index)
 {
-        if (! m_data) 
+    if (! m_data) 
         return (PyArrayObject*)defaultArray();
     
     MDAL_ResetStatus();
@@ -314,6 +327,12 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
         return (PyArrayObject*)defaultArray();
     }
+
+    MDAL_DatasetH datasetH = MDAL_G_dataset(m_data, index);
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
+        return (PyArrayObject*)defaultArray();
+    }
     
     npy_intp valueCount = (npy_intp)MDAL_M_faceCount( MDAL_G_mesh(m_data));
     
@@ -335,15 +354,16 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
     }
 
     Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
+    Py_XDECREF(m_dataset);
 
     // This is a dsCount x valueCount array.
-    PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+    m_dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
             1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
 
     int* buffer = new int[1024];
     size_t count = 0;
-    int bufs = std::ceil(valueCount/1024);
-    if (bufs == 0) bufs = 1;
     int indexStart = 0;
     int next = 1024;
 
@@ -352,7 +372,7 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_COUNT_INTEGER, buffer);
+        count = MDAL_D_data( datasetH, indexStart, next , MDAL_DataType::VERTICAL_LEVEL_COUNT_INTEGER, buffer);
 
         if (count != next) 
         {
@@ -362,7 +382,7 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
+            char* p = (char *)PyArray_GETPTR1(m_dataset, indexStart + i);
             uint32_t val = (uint32_t)buffer[idx];
             idx++;
             std::memcpy(p, &val, 4);
@@ -371,7 +391,7 @@ PyArrayObject* Data::getDataAsLevelCount(int index)
     }
     delete [] buffer;
     
-    return dataset;
+    return m_dataset;
 }
 
 PyArrayObject* Data::getDataAsLevelValue(int index)
@@ -383,6 +403,12 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
     if (_import_array() < 0)
     {
         MDAL_SetStatus(MDAL_LogLevel::Error, MDAL_Status::Err_FailToWriteToDisk, "Could not import numpy.core.multiarray.");
+        return (PyArrayObject*)defaultArray();
+    }
+
+    MDAL_DatasetH datasetH = MDAL_G_dataset(m_data, index);
+    if ( MDAL_LastStatus() != MDAL_Status::None)
+    {
         return (PyArrayObject*)defaultArray();
     }
     
@@ -406,15 +432,16 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
     }
 
     Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
+    Py_XDECREF(m_dataset);
 
     // This is a dsCount x valueCount array.
-    PyArrayObject* dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
+    m_dataset = (PyArrayObject *)PyArray_NewFromDescr(&PyArray_Type, dtype,
             1, &valueCount, 0, nullptr, NPY_ARRAY_CARRAY, nullptr);
 
     double* buffer = new double[1024];
     size_t count = 0;
-    int bufs = std::ceil(valueCount/1024);
-    if (bufs == 0) bufs = 1;
     int indexStart = 0;
     int next = 1024;
 
@@ -423,7 +450,7 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
         int remain = valueCount - indexStart;
         if (remain < 1024) next = remain;
         if (remain <= 0 ) break;
-        count = MDAL_D_data(MDAL_G_dataset(m_data, index), indexStart, next , MDAL_DataType::VERTICAL_LEVEL_DOUBLE, buffer);
+        count = MDAL_D_data( datasetH, indexStart, next , MDAL_DataType::VERTICAL_LEVEL_DOUBLE, buffer);
 
         if (count != next) 
         {
@@ -433,7 +460,7 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
         int idx = 0;
         for (int i = 0; i < count; i++) 
         {
-            char* p = (char *)PyArray_GETPTR1(dataset, indexStart + i);
+            char* p = (char *)PyArray_GETPTR1(m_dataset, indexStart + i);
             double val = buffer[idx];
             idx++;
             std::memcpy(p, &val, 8);
@@ -441,7 +468,7 @@ PyArrayObject* Data::getDataAsLevelValue(int index)
         indexStart += count;
     }
     delete [] buffer;
-    return dataset;
+    return m_dataset;
 }
 
 MDAL_Status Data::setDataAsDouble(PyArrayObject* data, double time)

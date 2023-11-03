@@ -43,3 +43,5 @@ mdal.egg-info/
 mdal-python.code-workspace
 mdal-pypi/LICENSE
 mdal-pypi/README.rst
+test/results_3di.nc
+

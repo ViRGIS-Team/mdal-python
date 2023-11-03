@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: mdal-python
-Version: 1.0.0
+Version: 1.0.2
 Summary: Mesh data processing
 Home-page: https://www.mdal.xyz
 Author: Paul Harwood
@@ -21,6 +21,8 @@ Classifier: Programming Language :: Python :: 3.11
 Classifier: Topic :: Scientific/Engineering :: GIS
 Description-Content-Type: text/x-rst
 License-File: LICENSE
+Requires-Dist: numpy
+Requires-Dist: meshio
 
 ================================================================================
 MDAL Python Integration
@@ -28,6 +30,9 @@ MDAL Python Integration
 
 .. image:: https://img.shields.io/conda/vn/conda-forge/mdal-python.svg
    :target: https://anaconda.org/conda-forge/mdal-python
+   
+.. image:: https://badge.fury.io/py/mdal-python.svg
+   :target: https://badge.fury.io/py/mdal-python
 
 Basics
 ------
@@ -64,6 +69,17 @@ MDAL Python support is installable via Conda:
 .. code-block::
 
     conda install -c conda-forge mdal-python
+
+PyPI
+...............................................................................
+
+MDAL Python support can be installed using `pip`
+
+.. code-block::
+
+   pip install mdal-python
+   
+This will ONLY work if there is a valid and working installation of MDAL on the device and accessible through the device library search path.
 
 GitHub
 ................................................................................

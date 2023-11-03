@@ -225,7 +225,9 @@ PyArrayObject *Mesh::getFaces()
         if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
             {}
     //         throw pdal_error("Unable to build numpy dtype");
-        Py_XDECREF(dict);
+    Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
 
         npy_intp size = (npy_intp)faceCount();
 
@@ -292,7 +294,9 @@ PyArrayObject *Mesh::getEdges()
         if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
             {}
     //         throw pdal_error("Unable to build numpy dtype");
-        Py_XDECREF(dict);
+    Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
 
         npy_intp size = (npy_intp)edgeCount();
 
@@ -450,8 +454,9 @@ bool Mesh::addFaces(PyArrayObject* faces, long int count){
     PyObject *names_dict = dtype->fields;
     PyObject *names = PyDict_Keys(names_dict);
     PyObject *values = PyDict_Values(names_dict);
-    if (!names || !values) {}
+    if (!names || !values) {
         //throw pdal_error("Bad field specification in numpy array.");
+    }
 
     if (numFields< 3) {}
         //throw pdal_error("Faces"
