@@ -49,9 +49,13 @@ PyPI
 
 MDAL Python support can be installed using `pip`
 
+.. note::
+
+    The previous mdal-python package is deprecated and will not updated beyond 1.0.3. Use the mdal package instead.
+
 .. code-block::
 
-   pip install mdal-python
+   pip install mdal
    
 This will ONLY work if there is a valid and working installation of MDAL on the device and accessible through the device library search path.
 
