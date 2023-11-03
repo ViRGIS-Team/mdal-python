@@ -48,7 +48,7 @@ long_description = readme + '\n\n' +  changes
 # https://github.com/ktbarrett/hello/blob/master/CMakeLists.txt
 
 setup_args = dict(
-    name                = 'mdal-python',
+    name                = 'mdal',
     version             = str(module_version),
     install_requires    = [ 'numpy','meshio'],
     description         = 'Mesh data processing',
@@ -67,7 +67,7 @@ setup_args = dict(
     include_package_data = False,
     exclude_package_data={'': ['test']},
     classifiers         = [
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
