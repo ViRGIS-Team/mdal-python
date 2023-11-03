@@ -2,8 +2,10 @@ name: Build
 
 on:
   pull_request:
-    branches:
-    - '*'
+    types:
+      - opened
+      - edited
+      - closed
   release:
     types:
       - published
