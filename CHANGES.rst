@@ -1,13 +1,16 @@
 Changes
 --------------------------------------------------------------------------------
 
-2.0.0
+1.0.2
 -----
 
-UNDER DEVELOPMENT
+- fix memory leaks and inconsistencies around the Datagroup object (#11)
 
-- fix memory leaks and inconsistencies around the Datagroup object
-- remove Open3D integration to separate package
+1.0.1
+-----
+
+- Add the PyPI package
+
 
 1.0.0
 -----
