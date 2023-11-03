@@ -80,7 +80,7 @@ jobs:
 
     - name: Publish package - test
       uses: pypa/gh-action-pypi-publish@release/v1
-      if: github.event_name != 'release'
+      if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
       with:
         user: __token__
         password: ${{ secrets.PYPI_TEST_TOKEN }}
