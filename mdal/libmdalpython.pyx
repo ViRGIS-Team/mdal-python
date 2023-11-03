@@ -230,7 +230,6 @@ cdef class Datasource:
         self.uri = str(uri)
         if type(uri) == str:
             uri = Path(uri)
-        print(uri)
         if driver_name:
             self.driver_name = driver_name
             return
