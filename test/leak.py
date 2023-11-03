@@ -2,7 +2,7 @@ from mdal import Datasource
 from pathlib import Path
 import gc
 
-mypath = "C:\\Users\\runes\\Documents\\GitHub\\mdal-python\\test\\results_3di.nc"
+mypath = "/Users/paulharwood/Downloads/results_3di.nc"
 ds = Datasource(mypath)
 
 for i in range(0,100):

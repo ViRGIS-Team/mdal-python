@@ -225,7 +225,9 @@ PyArrayObject *Mesh::getFaces()
         if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
             {}
     //         throw pdal_error("Unable to build numpy dtype");
-        Py_XDECREF(dict);
+    Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
 
         npy_intp size = (npy_intp)faceCount();
 
@@ -292,7 +294,9 @@ PyArrayObject *Mesh::getEdges()
         if (PyArray_DescrConverter(dict, &dtype) == NPY_FAIL)
             {}
     //         throw pdal_error("Unable to build numpy dtype");
-        Py_XDECREF(dict);
+    Py_XDECREF(dict);
+    Py_XDECREF(titles);
+    Py_XDECREF(formats);
 
         npy_intp size = (npy_intp)edgeCount();
 

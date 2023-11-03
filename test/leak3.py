@@ -7,8 +7,6 @@ ds = Datasource(mypath)
 
 with ds.load() as mesh:
     print("mesh loaded")
-    for i in range(0,1000):
+    for i in range(0,100000):
         print(i)
-        group = mesh.group(3)
-        data = group.data(0)
-        print(data)
+        vertices = mesh.vertices

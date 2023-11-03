@@ -228,12 +228,13 @@ cdef class Datasource:
 
     def __cinit__(self, uri: Path, driver_name : str = None):   
         self.uri = str(uri)
-        if type(uri) != Path:
-            path = Path(uri)
+        if type(uri) == str:
+            uri = Path(uri)
+        print(uri)
         if driver_name:
             self.driver_name = driver_name
             return
-        if path.is_file():
+        if uri.is_file():
             try:
                 meshes = self.meshes
                 if len(meshes) > 0:
@@ -241,7 +242,7 @@ cdef class Datasource:
                     return
             except Exception:
                 pass
-        ex = path.suffix
+        ex = uri.suffix
         for driver in drivers():
             if ex in driver.filters:
                 self.driver_name = driver.name
