@@ -6,7 +6,6 @@
 #
 # MDAL_LIBRARY_PATH: a path to a MDAL C++ shared library.
 #
-#
 # NB: within this setup scripts, software versions are evaluated according
 # to https://www.python.org/dev/peps/pep-0440/.
 
@@ -67,7 +66,7 @@ setup_args = dict(
     include_package_data = False,
     exclude_package_data={'': ['test']},
     classifiers         = [
-        'Development Status :: 5 - Production',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
