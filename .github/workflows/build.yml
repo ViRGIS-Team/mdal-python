@@ -3,6 +3,9 @@ name: Build
 on:
   pull_request:
 
+  pull_request_target:
+    types:
+      - closed
   release:
     types:
       - published
@@ -79,7 +82,7 @@ jobs:
 
     - name: Publish package - test
       uses: pypa/gh-action-pypi-publish@release/v1
-      if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true
+      if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == true
       with:
         user: __token__
         password: ${{ secrets.PYPI_TEST_TOKEN }}
