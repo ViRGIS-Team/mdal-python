@@ -502,7 +502,7 @@ bool Mesh::addEdges(PyArrayObject* edges){
     PyObject* names_dict = PyDataType_FIELDS(dtype);
     int numFields = (names_dict == Py_None) ?
         0 :
-        static_cast<int>(PyDict_Size(dtype->fields));
+        static_cast<int>(PyDict_Size(names_dict));
 
     PyObject *names = PyDict_Keys(names_dict);
     PyObject *values = PyDict_Values(names_dict);
