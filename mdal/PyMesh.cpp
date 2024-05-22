@@ -350,11 +350,11 @@ bool Mesh::addVertices(PyArrayObject* vertices){
     npy_intp ndims = PyArray_NDIM(m_vertices);
     npy_intp *shape = PyArray_SHAPE(m_vertices);
     size_t size = shape[0];
-    int numFields = (dtype->fields == Py_None) ?
+    PyObject* names_dict = PyDataType_FIELDS(dtype);
+    int numFields = (names_dict == Py_None) ?
         0 :
-        static_cast<int>(PyDict_Size(dtype->fields));
+        static_cast<int>(PyDict_Size(names_dict));
 
-    PyObject *names_dict = dtype->fields;
     PyObject *names = PyDict_Keys(names_dict);
     PyObject *values = PyDict_Values(names_dict);
     if (!names || !values)
@@ -447,11 +447,11 @@ bool Mesh::addFaces(PyArrayObject* faces, long int count){
     npy_intp ndims = PyArray_NDIM(m_faces);
     npy_intp *shape = PyArray_SHAPE(m_faces);
     size_t size = shape[0];
-    int numFields = (dtype->fields == Py_None) ?
+    PyObject* names_dict = PyDataType_FIELDS(dtype);
+    int numFields = (names_dict == Py_None) ?
         0 :
-        static_cast<int>(PyDict_Size(dtype->fields));
+        static_cast<int>(PyDict_Size(names_dict));
 
-    PyObject *names_dict = dtype->fields;
     PyObject *names = PyDict_Keys(names_dict);
     PyObject *values = PyDict_Values(names_dict);
     if (!names || !values) {
@@ -499,11 +499,11 @@ bool Mesh::addEdges(PyArrayObject* edges){
     npy_intp ndims = PyArray_NDIM(m_edges);
     npy_intp *shape = PyArray_SHAPE(m_edges);
     size_t size = shape[0];
-    int numFields = (dtype->fields == Py_None) ?
+    PyObject* names_dict = PyDataType_FIELDS(dtype);
+    int numFields = (names_dict == Py_None) ?
         0 :
         static_cast<int>(PyDict_Size(dtype->fields));
 
-    PyObject *names_dict = dtype->fields;
     PyObject *names = PyDict_Keys(names_dict);
     PyObject *values = PyDict_Values(names_dict);
     if (!names || !values) {}
