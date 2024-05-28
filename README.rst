@@ -59,6 +59,11 @@ MDAL Python support can be installed using `pip`
    
 This will ONLY work if there is a valid and working installation of MDAL on the device and accessible through the device library search path.
 
+.. note::
+
+    As of version 1.1.0, this package has been written to the NumPy 2.0 ABI. This should work with any version of NumPy >= 1.25 and Python >=3.9
+
+
 GitHub
 ................................................................................
 

@@ -4,6 +4,6 @@ channels:
 dependencies:
   - scikit-build
   - numpy
-  - mdal
+  - conda-forge::mdal
   - pytest
   - meshio
