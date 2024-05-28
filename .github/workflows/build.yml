@@ -33,7 +33,6 @@ jobs:
       uses:  mamba-org/setup-micromamba@v1
       with:
         environment-file: .github/environment.yml
-        channels: conda-forge
         create-args: |
           python=${{ matrix.python-version }}
 
