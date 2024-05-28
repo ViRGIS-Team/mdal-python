@@ -38,6 +38,7 @@ jobs:
 
     - name: Install mdal python
       run: |
+        micromamba activate testenv
         pip install . -vv
 
 
