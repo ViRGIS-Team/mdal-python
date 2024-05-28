@@ -39,6 +39,7 @@ jobs:
     - name: Install mdal python
       run: |
         micromamba activate testenv
+        set
         pip install . -vv
 
 
@@ -47,7 +48,7 @@ jobs:
       run: python setup.py --skip-cmake bdist_wheel
 
     - name: Build source distribution
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
+      if: matrix.os == 'ubuntu-latest'
       run: python setup.py sdist
 
     - name: Upload distribution(s)
