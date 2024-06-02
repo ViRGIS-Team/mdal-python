@@ -49,7 +49,7 @@ long_description = readme + '\n\n' +  changes
 setup_args = dict(
     name                = 'mdal',
     version             = str(module_version),
-    install_requires    = [ 'numpy','meshio'],
+    install_requires    = [ 'numpy>=1.21.0rc1','meshio'],
     description         = 'Mesh data processing',
     license             = 'MIT',
     keywords            = 'mesh data spatial',
