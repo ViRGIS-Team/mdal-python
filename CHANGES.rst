@@ -1,6 +1,10 @@
 Changes
 --------------------------------------------------------------------------------
 
+1.1.1
+-----
+- updates to config.py to update version and license selector
+
 1.1.0
 -----
 
